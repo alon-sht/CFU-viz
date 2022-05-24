@@ -7,20 +7,30 @@ import streamlit as st
 st.set_page_config(layout="wide")
 pd.set_option("display.precision", 2)
 pd.options.display.float_format = '{:,.2f}'.format
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
 # %%
 y_variables=["Normalized_Count_1","Normalized_Count_2","Normalized_Count_3","Normalized_Count_4","Normalized_Count_5"]
 cols=['Donor', 'Sample Origin', 'Sample Type', 'Day', 'Sampling point',
        'Sample Dilution', 'Drop Assay Dilution', 'PBS Dilution',
        'Amount of Powder (g)', 'Normalization Factor', 'Average_by', 'Plate']
 # upload_data_widget=pn.widgets.FileInput(accept='.xlsx')
-
+head=st.columns(3)
+head[0]=head[2]=st.write("")
+head[1].image("Mybiotics_LOGO - Large.png",width=350)
 st.title("MyCFUViz")
+
 main=st.container()
 upload_data_widget=main.file_uploader(label='Upload File', type=['xlsx'])
 
 def excel_to_df(upload_data_widget):
     return pd.read_excel(BytesIO(
-                    upload_data_widget.getvalue()), skiprows=1)
+                    upload_data_widget.getvalue()), skiprows=1).round(3)
 
 def get_filters(df):
        
@@ -28,6 +38,8 @@ def get_filters(df):
        widget_dict={}
        global query
        query=f""
+       st.sidebar.image("Mybiotics_LOGO - Large.png",width=250,)
+       st.sidebar.header('Widgets',)
        st.sidebar.subheader('Filter Data')
        for y in df.columns[1:df.columns.get_loc("Dilution")]:
               if len(df[y].unique().tolist())>1:
@@ -41,7 +53,7 @@ if upload_data_widget is not None:
        data.title("Raw Data")
        
        widgets=st.container()
-       widgets.header('Widgets')
+       
        
        filtered_data=st.container()
        filtered_data.title('Filtered Data')
