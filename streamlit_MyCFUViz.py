@@ -14,6 +14,16 @@ hide_streamlit_style = """
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
+
+
+import chart_studio
+import chart_studio.plotly as py
+import chart_studio.tools as tls
+username='alonsht'
+api_key='g2smYse27WCBmW0bG8Aw'
+
+tls.set_credentials_file(username=username,api_key=api_key)
+
 # %%
 y_variables=["Normalized_Count_1","Normalized_Count_2","Normalized_Count_3","Normalized_Count_4","Normalized_Count_5"]
 cols=['Donor', 'Sample Origin', 'Sample Type', 'Day', 'Sampling point',
@@ -95,5 +105,11 @@ if upload_data_widget is not None:
        else:
             fig.update_traces(boxpoints=None)
        st.plotly_chart(fig,use_container_width=True)
+       save1,save2=st.columns(2)
+       filename=save1.text_input(label='Input plot name')
+       def save_to_plotly_web():
+              py.plot(fig,filename=filename,auto_open=True)
+       
+       save2.button(label="Save to Plotly Web",on_click=save_to_plotly_web)
        
 
