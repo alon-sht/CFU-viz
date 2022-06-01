@@ -2,3 +2,4 @@ plotly
 pandas
 streamlit
 openpyxl
+chart_studio
