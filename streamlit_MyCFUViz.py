@@ -4,7 +4,11 @@ import plotly.express as px #processing of plots
 import numpy as np
 from io import BytesIO
 import streamlit as st
-st.set_page_config(layout="wide",page_title="MyCFUViz",page_icon='fav.ico')
+from PIL import Image
+im = Image.open("fav.ico")
+
+
+st.set_page_config(layout="wide",page_title="MyCFUViz",page_icon=im)
 pd.set_option("display.precision", 2)
 pd.options.display.float_format = '{:,.2f}'.format
 hide_streamlit_style = """
