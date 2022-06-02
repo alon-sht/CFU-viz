@@ -113,12 +113,14 @@ def get_filters_and_add_widgets_to_sidebar(df):
        global query
        query=f""
        st.sidebar.header('Widgets',)
-       filter_widgets=st.sidebar.expander("Data Filters")
+       filter_widgets=st.sidebar.expander("Data Filters. After choosing filters press the button at the bottom.")
        filter_widgets.subheader('Filter Data')
+       form=filter_widgets.form('form1')
        for y in df.columns[1:df.columns.get_loc("Dilution")]:
               if len(df[y].unique().tolist())>1:
-                     widget_dict[y]=filter_widgets.multiselect(label=str(y),options=df[y].unique().tolist(),default=df[y].unique().tolist())    
+                     widget_dict[y]=form.multiselect(label=str(y),options=df[y].unique().tolist(),default=df[y].unique().tolist())    
                      query+=f"`{y}`  in {widget_dict[y]} & "
+       form.form_submit_button("Fiter Data")
        
 def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
