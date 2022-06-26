@@ -138,6 +138,44 @@ def add_plot_settings_to_sidebar():
        
 def add_custom_name_column():
        df_filtered['custom_name']=df_filtered[names].astype(str).agg('/'.join, axis=1)
+       
+       
+def percent_survaviaviluty_section():
+       st_survivability=st.container()
+       st_survivability.subheader("% Survivability")
+       if remove_zero:
+              df=df_filtered.replace(0,np.nan)
+       else:
+              df=df_filtered
+       choose_ref_sample=st_survivability.selectbox(label='Reference Sample',options=df_filtered['custom_name'].unique())
+       choose_ref_type=st_survivability.selectbox(label='Min/Max/Mean/Median',options=['Min','Max','Mean','Median'])
+       ref_opts=df[df['custom_name'].isin([choose_ref_sample])][y_variables]
+       if choose_ref_type=='Min':
+              ref_value=ref_opts.min().min()
+       elif choose_ref_type=='Max':
+              ref_value=ref_opts.max().max()
+       elif choose_ref_type=='Median':
+              ref_value=ref_opts.median().median()
+       elif choose_ref_type=='Mean':
+              ref_value=ref_opts.mean().mean()
+       st_survivability.text(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n Chosen reference value is {ref_value}")
+       y_norm=[val+'%' for val in y_variables]
+       df[y_norm]=df[y_variables]*100/ref_value
+       # st_survivability.text(df)
+       fig=px.box(df,x='custom_name',y=y_norm,color=color,height=height,log_y=log,facet_col=facet)
+       fig.update_traces(width=boxwidth, boxmean=True)
+       fig.update_xaxes(tickangle=90,matches=None,title=None)
+       if points:
+            fig.update_traces(boxpoints='all')
+       else:
+            fig.update_traces(boxpoints=None)
+       with st.spinner(text="In progress..."):
+              st_survivability.plotly_chart(fig,use_container_width=True)
+       # st_survivability
+       
+       
+       
+       
 
 def main():
        # Main part of the app
@@ -153,6 +191,10 @@ def main():
               add_plot_settings_to_sidebar()
               add_custom_name_column()
               st_plot_section()
+              percent_survaviaviluty_section()
+              
               
 if __name__=='__main__':
        main()
+
+# %%
