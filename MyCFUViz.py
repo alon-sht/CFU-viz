@@ -116,7 +116,15 @@ def get_filters_and_add_widgets_to_sidebar(df):
        filter_widgets=st.sidebar.expander("Data Filters. After choosing filters press the button at the bottom.")
        filter_widgets.subheader('Filter Data')
        form=filter_widgets.form('form1')
-       for y in df.columns[1:df.columns.get_loc("Dilution")]:
+       
+       if "Dilution" in df.columns:
+              sample_data_col="Dilution"
+       elif "SampleDilution" in df.columns:
+              sample_data_col="SampleDilution"
+       else:
+              sample_data_col=df.columns[-1]
+              
+       for y in df.columns[1:df.columns.get_loc(sample_data_col)]:
               if len(df[y].unique().tolist())>1:
                      widget_dict[y]=form.multiselect(label=str(y),options=df[y].unique().tolist(),default=df[y].unique().tolist())    
                      query+=f"`{y}`  in {widget_dict[y]} & "
