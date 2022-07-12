@@ -119,8 +119,8 @@ def get_filters_and_add_widgets_to_sidebar(df):
        
        if "Dilution" in df.columns:
               sample_data_col="Dilution"
-       elif "SampleDilution" in df.columns:
-              sample_data_col="SampleDilution"
+       elif "CountedDilution" in df.columns:
+              sample_data_col="CountedDilution"
        else:
               sample_data_col=df.columns[-1]
               
