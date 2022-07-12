@@ -26,9 +26,10 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # %%
 y_variables=["Normalized_Count_1","Normalized_Count_2","Normalized_Count_3","Normalized_Count_4","Normalized_Count_5"]
-cols=['Donor', 'Sample Origin', 'Sample Type', 'Day', 'Sampling point',
-       'Sample Dilution', 'Drop Assay Dilution', 'PBS Dilution',
-       'Amount of Powder (g)', 'Normalization Factor', 'Average_by', 'Plate']
+# cols=['Donor', 'Sample Origin', 'Sample Type', 'Day', 'Sampling point',
+#        'Sample Dilution', 'Drop Assay Dilution', 'PBS Dilution',
+#        'Amount of Powder (g)', 'Normalization Factor', 'Average_by', 'Plate']
+
 def st_header_section():
        # Set up header section of app
        head=st.columns(3)
@@ -73,6 +74,7 @@ def st_plot_section():
        # Set up section where plots are shown
        st_figure=st.container()
        st_figure.subheader("Figures")
+       st_figure.subheader("CFU Plot")
        if remove_zero:
               df=df_filtered.replace(0,np.nan)
        else:
@@ -110,7 +112,7 @@ def add_logo_and_links_to_sidebar():
 def get_filters_and_add_widgets_to_sidebar(df):
        # Parse the df and get filter widgets based on columns
        widget_dict={}
-       global query
+       global query,cols
        query=f""
        st.sidebar.header('Widgets',)
        filter_widgets=st.sidebar.expander("Data Filters. After choosing filters press the button at the bottom.")
@@ -123,7 +125,10 @@ def get_filters_and_add_widgets_to_sidebar(df):
               sample_data_col="CountedDilution"
        else:
               sample_data_col=df.columns[-1]
-              
+       
+       df = df.replace(r'', np.nan)       
+       ind=list(df.columns).index('Plate')
+       cols=df.columns.tolist()[:ind]
        for y in df.columns[1:df.columns.get_loc(sample_data_col)]:
               if len(df[y].unique().tolist())>1:
                      widget_dict[y]=form.multiselect(label=str(y),options=df[y].unique().tolist(),default=df[y].unique().tolist())    
@@ -138,7 +143,7 @@ def add_plot_settings_to_sidebar():
        color=plot_settings.selectbox(label='Color',options=[None]+cols,index=0)
        facet=plot_settings.selectbox(label='Facet',options=[None]+cols,index=0)
        height=plot_settings.slider(label='Height',min_value=300,max_value=1200,value=500,step=50)
-       names=plot_settings.multiselect(label='Names',options=cols,default=['Donor', 'Sample Origin', 'Sample Type'])
+       names=plot_settings.multiselect(label='Name Samples By Chosen Columns',options=cols,default=['Average_by'])
        boxwidth=plot_settings.slider(label='Box Width',min_value=0.1,max_value=1.0,value=0.8,step=0.1)
        points=plot_settings.checkbox(label='Show Points', value=False)
        log=plot_settings.checkbox(label='Log Y Axis', value=True)    
@@ -150,7 +155,7 @@ def add_custom_name_column():
        
 def percent_survaviaviluty_section():
        st_survivability=st.container()
-       st_survivability.subheader("% Survivability")
+       st_survivability.subheader("% Survivability Plot")
        if remove_zero:
               df=df_filtered.replace(0,np.nan)
        else:
