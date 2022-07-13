@@ -96,6 +96,10 @@ def st_plot_section():
        else:
               df=df_filtered
        fig=px.box(df,x='custom_name',y=y_variables,color=color,height=height,log_y=log,facet_col=facet)
+       # if start_at_one:
+       #        fig.update_layout(yaxis_range=[1,np.log10(df[y_variables].max().max())+0.5])
+       # else:
+       #        fig.update_layout(yaxis_range=[np.log10(df[y_variables].min().min())-0.5,np.log10(df[y_variables].max().max())+0.5])
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None)
        if points:
@@ -109,8 +113,12 @@ def st_plot_section():
 def excel_to_df(upload_data_widget):
        # Get input: excel file
        # Return pandas df
+       global cols
        df=pd.read_excel(BytesIO(
                     upload_data_widget.getvalue()), skiprows=1).round(3)
+       ind=list(df.columns).index('Plate')
+       cols=df.columns.tolist()[:ind+1]
+       df[cols] = df[cols].replace(np.nan, "")
        return df
 
 
@@ -128,7 +136,7 @@ def add_logo_and_links_to_sidebar():
 def get_filters_and_add_widgets_to_sidebar(df):
        # Parse the df and get filter widgets based on columns
        widget_dict={}
-       global query,cols
+       global query
        query=f""
        st.sidebar.header('Widgets',)
        filter_widgets=st.sidebar.expander("Data Filters. After choosing filters press the button at the bottom.")
@@ -142,9 +150,7 @@ def get_filters_and_add_widgets_to_sidebar(df):
        else:
               sample_data_col=df.columns[-1]
        
-       df = df.replace('', np.nan)       
-       ind=list(df.columns).index('Plate')
-       cols=df.columns.tolist()[:ind]
+       
        for y in df.columns[1:df.columns.get_loc(sample_data_col)]:
               if len(df[y].unique().tolist())>1:
                      widget_dict[y]=form.multiselect(label=str(y),options=df[y].unique().tolist(),default=df[y].unique().tolist())    
@@ -153,16 +159,26 @@ def get_filters_and_add_widgets_to_sidebar(df):
        
 def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
-       global color, facet, height, names,boxwidth,points,log,remove_zero
+       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one
        plot_settings=st.sidebar.expander("Plot Settings")
        plot_settings.subheader('Plot Widgets')
        color=plot_settings.selectbox(label='Color',options=[None]+cols,index=0)
        facet=plot_settings.selectbox(label='Facet',options=[None]+cols,index=0)
        height=plot_settings.slider(label='Height',min_value=300,max_value=1200,value=500,step=50)
-       names=plot_settings.multiselect(label='Name Samples By Chosen Columns',options=cols,default=['Average_by'])
+       temp_opts=['SampleID/PlateID', 'Experiment', 'Bacteria', 'SampleOrigin',
+       'TestedPhase', 'TimePoint', 'TestedAgent', 'TestedAgentDilution',
+        'Plate']
+       agg_opts=[]
+       for opt in temp_opts:
+              if opt in cols:
+                     agg_opts.append(opt)
+       if len(agg_opts)==0:
+              agg_opts=['Average_by']
+       names=plot_settings.multiselect(label='Name Samples By Chosen Columns',options=cols,default=agg_opts)
        boxwidth=plot_settings.slider(label='Box Width',min_value=0.1,max_value=1.0,value=0.8,step=0.1)
        points=plot_settings.checkbox(label='Show Points', value=False)
-       log=plot_settings.checkbox(label='Log Y Axis', value=True)    
+       log=plot_settings.checkbox(label='Log Y Axis', value=True)
+       start_at_one=plot_settings.checkbox(label='Start Axis at 1', value=False,disabled=True)
        remove_zero=plot_settings.checkbox(label='Remove Zero Values', value=True)
        
 def add_custom_name_column():
@@ -191,7 +207,17 @@ def percent_survaviaviluty_section():
        y_norm=[val+'%' for val in y_variables]
        df[y_norm]=df[y_variables]*100/ref_value
        # st_survivability.text(df)
-       fig=px.box(df,x='custom_name',y=y_norm,color=color,height=height,log_y=log,facet_col=facet)
+       fig=px.box(df,x='custom_name',y=y_norm,color=color,height=height,log_y=log,facet_col=facet,)
+       # if start_at_one:
+       #        if log:
+       #               fig.update_layout(yaxis_range=[1,np.log10(df[y_variables].max().max())+0.5])
+       #        else:
+       #               fig.update_yaxes(autorange=True)
+       # else:
+       #        if log:
+       #               fig.update_layout(yaxis_range=[np.log10(df[y_variables].min().min())-0.5,np.log10(df[y_variables].max().max())+0.5])
+       #        else:
+       #               fig.update_yaxes(autorange=True)
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None)
        if points:
