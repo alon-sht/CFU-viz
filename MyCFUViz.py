@@ -10,7 +10,6 @@ st.set_page_config(layout="wide",page_title="MyCFUViz",page_icon=Image.open("fav
 pd.options.display.float_format = '{:,.2f}'.format
 hide_streamlit_style = """
               <style>
-              #MainMenu {visibility: hidden;}
               footer {visibility: hidden;}
               [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
                      width: 500px;
@@ -21,6 +20,23 @@ hide_streamlit_style = """
                      }
             </style>
             """
+            
+            
+
+# hide_streamlit_style = """
+#               <style>
+#               #MainMenu {visibility: hidden;}
+#               footer {visibility: hidden;}
+#               [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
+#                      width: 500px;
+#                      }
+#               [data-testid="stSidebar"][aria-expanded="false"] > div:first-child {
+#                      width: 500px;
+#                      margin-left: -500px;
+#                      }
+#             </style>
+#             """            
+            
 st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
 
 
@@ -126,7 +142,7 @@ def get_filters_and_add_widgets_to_sidebar(df):
        else:
               sample_data_col=df.columns[-1]
        
-       df = df.replace(r'', np.nan)       
+       df = df.replace('', np.nan)       
        ind=list(df.columns).index('Plate')
        cols=df.columns.tolist()[:ind]
        for y in df.columns[1:df.columns.get_loc(sample_data_col)]:
