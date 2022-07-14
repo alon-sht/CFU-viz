@@ -112,7 +112,7 @@ def st_plot_section():
                      fig.update_layout(yaxis_range=[0,df[y_variables].max().max()*1.05])
               else:
                      fig.layout.yaxis.autorange=True
-                     
+       fig.update_layout(font=dict(size=font_size,))       
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True)
        fig.update_yaxes(exponentformat='E')
@@ -173,12 +173,13 @@ def get_filters_and_add_widgets_to_sidebar(df):
        
 def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
-       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one
+       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size
        plot_settings=st.sidebar.expander("Plot Settings")
        plot_settings.subheader('Plot Widgets')
        color=plot_settings.selectbox(label='Color',options=[None]+cols,index=0)
        facet=plot_settings.selectbox(label='Facet',options=[None]+cols,index=0)
        height=plot_settings.slider(label='Height',min_value=300,max_value=1200,value=500,step=50)
+       font_size=plot_settings.slider(label='Font Size',min_value=1,max_value=25,value=14)
        temp_opts=['SampleID/PlateID', 'Experiment', 'Bacteria', 'SampleOrigin',
        'TestedPhase', 'TimePoint', 'TestedAgent', 'TestedAgentDilution',
         'Plate']
@@ -254,6 +255,7 @@ def percent_survaviaviluty_section():
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1)
        fig.update_yaxes(exponentformat='E')
+       fig.update_layout(font=dict(size=font_size,))
        if points:
             fig.update_traces(boxpoints='all')
        else:
