@@ -66,7 +66,8 @@ def st_file_upload_section():
 def st_data_section():
        global df
        # Set up section where data is shown
-       data=st.container()
+       st.subheader("DataFrames")
+       data=st.expander('Raw DataFrame (Click to Show)')
        data.subheader("Raw Data")
        data_text=data.text("Loading data file...")
        df=excel_to_df(upload_data_widget)
@@ -80,7 +81,7 @@ def filter_data():
 def st_filtered_data_section():
        
        # Set up section where filtered data is shown
-       filtered_data=st.container()
+       filtered_data=st.expander("Filtered DataFrame (Click to Show)")
        filtered_data.subheader('Filtered Data')
        
        filtered_data.write(df_filtered.astype(str))
@@ -92,16 +93,29 @@ def st_plot_section():
        st_figure.subheader("Figures")
        st_figure.subheader("CFU Plot")
        if remove_zero:
-              df=df_filtered.replace(0,np.nan)
-       else:
+              df_filtered[y_variables]=df_filtered[y_variables].replace(0,np.nan)
               df=df_filtered
+       else:
+              df_filtered[y_variables]=df_filtered[y_variables].replace(0,1.00001)
+              df=df_filtered
+       if color:
+              df[color]=df[color].astype(str)
        fig=px.box(df,x='custom_name',y=y_variables,color=color,height=height,log_y=log,facet_col=facet)
-       # if start_at_one:
-       #        fig.update_layout(yaxis_range=[1,np.log10(df[y_variables].max().max())+0.5])
-       # else:
-       #        fig.update_layout(yaxis_range=[np.log10(df[y_variables].min().min())-0.5,np.log10(df[y_variables].max().max())+0.5])
+       if log: 
+              if start_at_one:
+                     fig.update_layout(yaxis_range=[0,np.log10(df[y_variables].max().max())+0.5])
+              else:
+                     fig.layout.yaxis.autorange=True
+                     
+       else:
+              if start_at_one:
+                     fig.update_layout(yaxis_range=[0,df[y_variables].max().max()*1.05])
+              else:
+                     fig.layout.yaxis.autorange=True
+                     
        fig.update_traces(width=boxwidth, boxmean=True)
-       fig.update_xaxes(tickangle=90,matches=None,title=None)
+       fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True)
+       fig.update_yaxes(exponentformat='E')
        if points:
             fig.update_traces(boxpoints='all')
        else:
@@ -128,8 +142,8 @@ def add_logo_and_links_to_sidebar():
        links=st.sidebar.container()
        links.subheader('Links')
        links.markdown("[File Upload](#file-upload)", unsafe_allow_html=True)
-       links.markdown("[Raw Data](#raw-data)", unsafe_allow_html=True)
-       links.markdown("[Filtered Data](#filtered-data)", unsafe_allow_html=True)
+       links.markdown("[DataFrames](#dataframes)", unsafe_allow_html=True)
+       # links.markdown("[Filtered Data](#filtered-data)", unsafe_allow_html=True)
        links.markdown("[Figures](#figures)", unsafe_allow_html=True)
        
        
@@ -178,7 +192,7 @@ def add_plot_settings_to_sidebar():
        boxwidth=plot_settings.slider(label='Box Width',min_value=0.1,max_value=1.0,value=0.8,step=0.1)
        points=plot_settings.checkbox(label='Show Points', value=False)
        log=plot_settings.checkbox(label='Log Y Axis', value=True)
-       start_at_one=plot_settings.checkbox(label='Start Axis at 1', value=False,disabled=True)
+       start_at_one=plot_settings.checkbox(label='Start Axis at 1', value=False,)#disabled=True)
        remove_zero=plot_settings.checkbox(label='Remove Zero Values', value=True)
        
 def add_custom_name_column():
@@ -186,11 +200,14 @@ def add_custom_name_column():
        
        
 def percent_survaviaviluty_section():
+       st.markdown('---')
        st_survivability=st.container()
        st_survivability.subheader("% Survivability Plot")
        if remove_zero:
-              df=df_filtered.replace(0,np.nan)
+              df_filtered[y_variables]=df_filtered[y_variables].replace(0,np.nan)
+              df=df_filtered
        else:
+              df_filtered[y_variables]=df_filtered[y_variables].replace(0,1.00001)
               df=df_filtered
        choose_ref_sample=st_survivability.selectbox(label='Reference Sample',options=df_filtered['custom_name'].unique())
        choose_ref_type=st_survivability.selectbox(label='Min/Max/Mean/Median',options=['Min','Max','Mean','Median'])
@@ -207,6 +224,8 @@ def percent_survaviaviluty_section():
        y_norm=[val+'%' for val in y_variables]
        df[y_norm]=df[y_variables]*100/ref_value
        # st_survivability.text(df)
+       if color:
+              df[color]=df[color].astype(str)
        fig=px.box(df,x='custom_name',y=y_norm,color=color,height=height,log_y=log,facet_col=facet,)
        # if start_at_one:
        #        if log:
@@ -218,8 +237,23 @@ def percent_survaviaviluty_section():
        #               fig.update_layout(yaxis_range=[np.log10(df[y_variables].min().min())-0.5,np.log10(df[y_variables].max().max())+0.5])
        #        else:
        #               fig.update_yaxes(autorange=True)
+       if log: 
+              if start_at_one:
+                     fig.update_layout(yaxis_range=[0,np.log10(df[y_variables].max().max())+0.5])
+                     fig.layout.yaxis.autorange=True
+              else:
+                     fig.layout.yaxis.autorange=True
+                     
+       else:
+              if start_at_one:
+                     fig.update_layout(yaxis_range=[0,df[y_variables].max().max()*1.05])
+                     fig.layout.yaxis.autorange=True
+              else:
+                     fig.layout.yaxis.autorange=True
+                     
        fig.update_traces(width=boxwidth, boxmean=True)
-       fig.update_xaxes(tickangle=90,matches=None,title=None)
+       fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1)
+       fig.update_yaxes(exponentformat='E')
        if points:
             fig.update_traces(boxpoints='all')
        else:
