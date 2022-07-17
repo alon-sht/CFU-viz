@@ -5,7 +5,7 @@ import numpy as np
 from io import BytesIO
 import streamlit as st
 from PIL import Image
-
+# %%
 st.set_page_config(layout="wide",page_title="MyCFUViz",page_icon=Image.open("fav.ico"))
 pd.options.display.float_format = '{:,.2f}'.format
 hide_streamlit_style = """
@@ -45,7 +45,7 @@ y_variables=["Normalized_Count_1","Normalized_Count_2","Normalized_Count_3","Nor
 # cols=['Donor', 'Sample Origin', 'Sample Type', 'Day', 'Sampling point',
 #        'Sample Dilution', 'Drop Assay Dilution', 'PBS Dilution',
 #        'Amount of Powder (g)', 'Normalization Factor', 'Average_by', 'Plate']
-
+ignore_list=['Count_1','Count_2','Count_3','Count_4','Count_5','Average','LOG','STD','Average Dilutions','Average STD']
 def st_header_section():
        # Set up header section of app
        head=st.columns(3)
@@ -75,15 +75,20 @@ def st_data_section():
        data_text.text("Data file loaded")
 def filter_data():
        # Filter data according to widgets
-       global df_filtered
+       global df_filtered, df_melt
        df_filtered=df.query(query[:-2])
+       if remove_zero:
+              df_filtered[y_variables]=df_filtered[y_variables].replace(0,np.nan)
+       else:
+              df_filtered[y_variables]=df_filtered[y_variables].replace(0,1.00001)
+       df_filtered['custom_name']=df_filtered[names].astype(str).agg('/'.join, axis=1)
+       df_melt=pd.melt(df_filtered,id_vars=[x for x in df_filtered.columns if x not in y_variables+ignore_list],value_vars=y_variables)
        
 def st_filtered_data_section():
        
        # Set up section where filtered data is shown
        filtered_data=st.expander("Filtered DataFrame (Click to Show)")
-       filtered_data.subheader('Filtered Data')
-       
+       filtered_data.subheader('Filtered Data') 
        filtered_data.write(df_filtered.astype(str))
 
 
@@ -92,12 +97,7 @@ def st_plot_section():
        st_figure=st.container()
        st_figure.subheader("Figures")
        st_figure.subheader("CFU Plot")
-       if remove_zero:
-              df_filtered[y_variables]=df_filtered[y_variables].replace(0,np.nan)
-              df=df_filtered
-       else:
-              df_filtered[y_variables]=df_filtered[y_variables].replace(0,1.00001)
-              df=df_filtered
+       df=df_filtered
        if color:
               df[color]=df[color].astype(str)
        fig=px.box(df,x='custom_name',y=y_variables,color=color,height=height,log_y=log,facet_col=facet)
@@ -112,7 +112,8 @@ def st_plot_section():
                      fig.update_layout(yaxis_range=[0,df[y_variables].max().max()*1.05])
               else:
                      fig.layout.yaxis.autorange=True
-       fig.update_layout(font=dict(size=font_size,))       
+       fig.update_layout(font=dict(size=font_size,))      
+       fig.update_xaxes(showticklabels=xlabels)
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True)
        fig.update_yaxes(exponentformat='E')
@@ -123,6 +124,52 @@ def st_plot_section():
        with st.spinner(text="In progress..."):
               st_figure.plotly_chart(fig,use_container_width=True)
 
+
+
+def st_plot2_section():
+       # Set up section where plots are shown
+       st_figure2=st.container()
+       st_figure2.subheader("Scatter")
+       val_to_show_scatter=st_figure2.selectbox("Metric to show", options=['Mean','Median','Min','Max'])
+       if val_to_show_scatter=='Min':
+              metric='min'
+       elif val_to_show_scatter=='Max':
+              metric='max'
+       elif val_to_show_scatter=='Median':
+              metric='median'
+       elif val_to_show_scatter=='Mean':
+              metric='mean'
+       df=df_melt.groupby(by=['custom_name']).agg(metric).reset_index()
+       df_std=df_melt.groupby(by=['custom_name']).agg('sem')
+   
+       if color:
+              df[color]=df[color].astype(str)
+       
+       fig=px.scatter(df,x='custom_name',y='value',color=color,height=height,log_y=log,facet_col=facet,error_y=df_std['value'])
+       if log: 
+              
+              if start_at_one:
+                     fig.update_layout(yaxis_range=[0,np.log10(df['value'].max())+0.5])
+              else:
+                     fig.layout.yaxis.autorange=True
+                     
+       else:
+              if start_at_one:
+                     fig.update_layout(yaxis_range=[0,df['value'].max()*1.05])
+              else:
+                     fig.layout.yaxis.autorange=True
+                     
+       
+       fig.update_layout(font=dict(size=font_size,))       
+       # fig.update_traces(width=boxwidth, boxmean=True)
+       fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True)
+       fig.update_yaxes(exponentformat='E')
+       # if points:
+       #      fig.update_traces(boxpoints='all')
+       # else:
+       #      fig.update_traces(boxpoints=None)
+       with st.spinner(text="In progress..."):
+              st_figure2.plotly_chart(fig,use_container_width=True)
 
 def excel_to_df(upload_data_widget):
        # Get input: excel file
@@ -173,13 +220,14 @@ def get_filters_and_add_widgets_to_sidebar(df):
        
 def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
-       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size
+       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels
        plot_settings=st.sidebar.expander("Plot Settings")
        plot_settings.subheader('Plot Widgets')
        color=plot_settings.selectbox(label='Color',options=[None]+cols,index=0)
        facet=plot_settings.selectbox(label='Facet',options=[None]+cols,index=0)
        height=plot_settings.slider(label='Height',min_value=300,max_value=1200,value=500,step=50)
        font_size=plot_settings.slider(label='Font Size',min_value=1,max_value=25,value=14)
+       xlabels=plot_settings.checkbox(label='Show X axis labels', value=True)
        temp_opts=['SampleID/PlateID', 'Experiment', 'Bacteria', 'SampleOrigin',
        'TestedPhase', 'TimePoint', 'TestedAgent', 'TestedAgentDilution',
         'Plate']
@@ -204,12 +252,7 @@ def percent_survaviaviluty_section():
        st.markdown('---')
        st_survivability=st.container()
        st_survivability.subheader("% Survivability Plot")
-       if remove_zero:
-              df_filtered[y_variables]=df_filtered[y_variables].replace(0,np.nan)
-              df=df_filtered
-       else:
-              df_filtered[y_variables]=df_filtered[y_variables].replace(0,1.00001)
-              df=df_filtered
+       df=df_filtered
        choose_ref_sample=st_survivability.selectbox(label='Reference Sample',options=df_filtered['custom_name'].unique())
        choose_ref_type=st_survivability.selectbox(label='Min/Max/Mean/Median',options=['Min','Max','Mean','Median'])
        ref_opts=df[df['custom_name'].isin([choose_ref_sample])][y_variables]
@@ -228,16 +271,8 @@ def percent_survaviaviluty_section():
        if color:
               df[color]=df[color].astype(str)
        fig=px.box(df,x='custom_name',y=y_norm,color=color,height=height,log_y=log,facet_col=facet,)
-       # if start_at_one:
-       #        if log:
-       #               fig.update_layout(yaxis_range=[1,np.log10(df[y_variables].max().max())+0.5])
-       #        else:
-       #               fig.update_yaxes(autorange=True)
-       # else:
-       #        if log:
-       #               fig.update_layout(yaxis_range=[np.log10(df[y_variables].min().min())-0.5,np.log10(df[y_variables].max().max())+0.5])
-       #        else:
-       #               fig.update_yaxes(autorange=True)
+       fig.update_xaxes(showticklabels=xlabels)
+
        if log: 
               if start_at_one:
                      fig.update_layout(yaxis_range=[0,np.log10(df[y_variables].max().max())+0.5])
@@ -277,11 +312,13 @@ def main():
               
               add_logo_and_links_to_sidebar()
               get_filters_and_add_widgets_to_sidebar(df)
+              
+              add_plot_settings_to_sidebar()
               filter_data()
               st_filtered_data_section()
-              add_plot_settings_to_sidebar()
-              add_custom_name_column()
+              # add_custom_name_column()
               st_plot_section()
+              # st_plot2_section()
               percent_survaviaviluty_section()
               
               
