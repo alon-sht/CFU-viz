@@ -8,24 +8,8 @@ from PIL import Image
 # %%
 st.set_page_config(layout="wide",page_title="MyCFUViz",page_icon=Image.open("fav.ico"))
 pd.options.display.float_format = '{:,.2f}'.format
-hide_streamlit_style = """
-              <style>
-              footer {visibility: hidden;}
-              [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
-                     width: 500px;
-                     }
-              [data-testid="stSidebar"][aria-expanded="false"] > div:first-child {
-                     width: 500px;
-                     margin-left: -500px;
-                     }
-            </style>
-            """
-            
-            
-
 # hide_streamlit_style = """
 #               <style>
-#               #MainMenu {visibility: hidden;}
 #               footer {visibility: hidden;}
 #               [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
 #                      width: 500px;
@@ -35,7 +19,23 @@ hide_streamlit_style = """
 #                      margin-left: -500px;
 #                      }
 #             </style>
-#             """            
+#             """
+            
+            
+
+hide_streamlit_style = """
+              <style>
+              #MainMenu {visibility: hidden;}
+              footer {visibility: hidden;}
+              [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
+                     width: 500px;
+                     }
+              [data-testid="stSidebar"][aria-expanded="false"] > div:first-child {
+                     width: 500px;
+                     margin-left: -500px;
+                     }
+            </style>
+            """            
             
 st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
 
@@ -51,11 +51,21 @@ def st_header_section():
        st.title("MyCFUViz")
 
 
+def st_template_download():
+       # Set up template download section
+       download_column=st.container()
+       download_column.subheader("Template to use for the app")
+       with open('Template_CFU.xlsx','rb') as f:
+              download_column.download_button('Click Me to Download Template XLSX File',f,file_name='Template.xlsx')
+       download_column.text('Feel free to change the names of Sample Data columns or add new columns')
+       download_column.text('Other columns should not be changed')
+       # upload_data_widget=download_column.file_uploader(label='Upload File', type=['xlsx'],accept_multiple_files=True)
+
 def st_file_upload_section():
        # Set up file upload section of app
        global upload_data_widget
        upload_column=st.container()
-       upload_column.subheader("File Upload")
+       upload_column.subheader("File Upload (use intended template)")
        upload_data_widget=upload_column.file_uploader(label='Upload File', type=['xlsx'],accept_multiple_files=True)
        
 
@@ -239,7 +249,8 @@ def add_plot_settings_to_sidebar():
        agg_opts=[]
        for opt in temp_opts:
               if opt in cols:
-                     agg_opts.append(opt)
+                     if len(df[opt].drop_duplicates())>1:
+                            agg_opts.append(opt)
        if len(agg_opts)==0:
               agg_opts=['Average_by']
        names=plot_settings.multiselect(label='Name Samples By Chosen Columns',options=cols,default=agg_opts)
@@ -312,6 +323,7 @@ def percent_survaviaviluty_section():
 def main():
        # Main part of the app
        st_header_section()
+       st_template_download()
        st_file_upload_section()
        if upload_data_widget:
               st_data_section()
