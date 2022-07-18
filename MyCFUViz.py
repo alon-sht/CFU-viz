@@ -42,9 +42,6 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # %%
 y_variables=["Normalized_Count_1","Normalized_Count_2","Normalized_Count_3","Normalized_Count_4","Normalized_Count_5"]
-# cols=['Donor', 'Sample Origin', 'Sample Type', 'Day', 'Sampling point',
-#        'Sample Dilution', 'Drop Assay Dilution', 'PBS Dilution',
-#        'Amount of Powder (g)', 'Normalization Factor', 'Average_by', 'Plate']
 ignore_list=['Count_1','Count_2','Count_3','Count_4','Count_5','Average','LOG','STD','Average Dilutions','Average STD']
 def st_header_section():
        # Set up header section of app
@@ -59,7 +56,7 @@ def st_file_upload_section():
        global upload_data_widget
        upload_column=st.container()
        upload_column.subheader("File Upload")
-       upload_data_widget=upload_column.file_uploader(label='Upload File', type=['xlsx'])
+       upload_data_widget=upload_column.file_uploader(label='Upload File', type=['xlsx'],accept_multiple_files=True)
        
 
 
@@ -174,9 +171,17 @@ def st_plot2_section():
 def excel_to_df(upload_data_widget):
        # Get input: excel file
        # Return pandas df
-       global cols
-       df=pd.read_excel(BytesIO(
-                    upload_data_widget.getvalue()), skiprows=1).round(3)
+       global cols, df
+       if len(upload_data_widget)==1:
+              df=pd.read_excel(BytesIO(
+                    upload_data_widget[0].getvalue()), skiprows=1).round(3)
+       elif len(upload_data_widget)>1:
+              df=pd.read_excel(BytesIO(
+                    upload_data_widget[0].getvalue()), skiprows=1).round(3)
+              for file in upload_data_widget[1:]:
+                     df=pd.concat([df,pd.read_excel(BytesIO(
+                    file.getvalue()), skiprows=1).round(3)])
+                     
        ind=list(df.columns).index('Plate')
        cols=df.columns.tolist()[:ind+1]
        df[cols] = df[cols].replace(np.nan, "")
@@ -227,7 +232,7 @@ def add_plot_settings_to_sidebar():
        facet=plot_settings.selectbox(label='Facet',options=[None]+cols,index=0)
        height=plot_settings.slider(label='Height',min_value=300,max_value=1200,value=500,step=50)
        font_size=plot_settings.slider(label='Font Size',min_value=1,max_value=25,value=14)
-       xlabels=plot_settings.checkbox(label='Show X axis labels', value=True)
+       
        temp_opts=['SampleID/PlateID', 'Experiment', 'Bacteria', 'SampleOrigin',
        'TestedPhase', 'TimePoint', 'TestedAgent', 'TestedAgentDilution',
         'Plate']
@@ -240,6 +245,7 @@ def add_plot_settings_to_sidebar():
        names=plot_settings.multiselect(label='Name Samples By Chosen Columns',options=cols,default=agg_opts)
        boxwidth=plot_settings.slider(label='Box Width',min_value=0.1,max_value=1.0,value=0.8,step=0.1)
        points=plot_settings.checkbox(label='Show Points', value=False)
+       xlabels=plot_settings.checkbox(label='Show X axis labels', value=True)
        log=plot_settings.checkbox(label='Log Y Axis', value=True)
        start_at_one=plot_settings.checkbox(label='Start Axis at 1', value=False,)#disabled=True)
        remove_zero=plot_settings.checkbox(label='Remove Zero Values', value=True)
@@ -307,7 +313,7 @@ def main():
        # Main part of the app
        st_header_section()
        st_file_upload_section()
-       if upload_data_widget is not None:
+       if upload_data_widget:
               st_data_section()
               
               add_logo_and_links_to_sidebar()
