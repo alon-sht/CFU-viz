@@ -104,21 +104,28 @@ def st_plot_section():
        st_figure=st.container()
        st_figure.subheader("Figures")
        st_figure.subheader("CFU Plot")
+       show_metadata_on_hover=st_figure.checkbox("Show Metadata On Hover (When disabled - showing median/mean/min/max values)")
        df=df_filtered
        if color:
               df[color]=df[color].astype(str)
        fig=px.box(df,x='custom_name',y=y_variables,color=color,height=height,log_y=log,facet_col=facet)
        if log: 
+              max_val=np.log10(df[y_variables].max().max())+0.5
+              min_val=np.log10(df[y_variables].min().min())-0.5
               if start_at_one:
-                     fig.update_layout(yaxis_range=[0,np.log10(df[y_variables].max().max())+0.5])
+                     fig.update_layout(yaxis_range=[0,max_val])
               else:
-                     fig.layout.yaxis.autorange=True
+                     # fig.layout.yaxis.autorange=True
+                     fig.update_layout(yaxis_range=[min_val,max_val])
                      
        else:
+              max_val=df[y_variables].max().max()*1.05
+              min_val=df[y_variables].min().min()*0.95
               if start_at_one:
-                     fig.update_layout(yaxis_range=[0,df[y_variables].max().max()*1.05])
+                     fig.update_layout(yaxis_range=[0,max_val])
               else:
-                     fig.layout.yaxis.autorange=True
+                     fig.update_layout(yaxis_range=[min_val,max_val])
+                     # fig.layout.yaxis.autorange=True
        fig.update_layout(font=dict(size=font_size,))      
        fig.update_xaxes(showticklabels=xlabels)
        fig.update_traces(width=boxwidth, boxmean=True)
@@ -128,8 +135,22 @@ def st_plot_section():
             fig.update_traces(boxpoints='all')
        else:
             fig.update_traces(boxpoints=None)
+       if log:
+              y_val=10**max_val
+       if show_metadata_on_hover:
+              hover_plot = px.bar(df, x="custom_name", y=[y_val] * len(df["custom_name"]),
+                                   barmode="overlay",hover_data=cols)
+              hover_plot.update_traces(width=0.8, opacity=0.0,
+                                   showlegend=False, )
+              fig.add_traces(hover_plot.data)
+              
+       # fig.add_traces(fig.data)
+       
+
        with st.spinner(text="In progress..."):
               st_figure.plotly_chart(fig,use_container_width=True)
+       
+
 
 
 
@@ -291,18 +312,20 @@ def percent_survaviaviluty_section():
        fig.update_xaxes(showticklabels=xlabels)
 
        if log: 
+              max_val=np.log10(df[y_variables].max().max())+0.5
+              min_val=np.log10(df[y_variables].min().min())-0.5
               if start_at_one:
-                     fig.update_layout(yaxis_range=[0,np.log10(df[y_variables].max().max())+0.5])
-                     fig.layout.yaxis.autorange=True
+                     fig.update_layout(yaxis_range=[0,max_val])
               else:
-                     fig.layout.yaxis.autorange=True
+                     fig.update_layout(yaxis_range=[min_val,max_val])
                      
        else:
+              max_val=df[y_variables].max().max()*1.05
+              min_val=df[y_variables].min().min()*0.95
               if start_at_one:
-                     fig.update_layout(yaxis_range=[0,df[y_variables].max().max()*1.05])
-                     fig.layout.yaxis.autorange=True
+                     fig.update_layout(yaxis_range=[0,max_val])
               else:
-                     fig.layout.yaxis.autorange=True
+                     fig.update_layout(yaxis_range=[min_val,max_val])
                      
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1)
