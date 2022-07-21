@@ -83,7 +83,6 @@ def st_file_upload_section():
        upload_column=st.container()
        upload_column.subheader("File Upload (use intended template)")
        upload_data_widget=upload_column.file_uploader(label='Upload File', type=['xlsx'],accept_multiple_files=True)
-       
 
 
 def st_data_section():
@@ -150,8 +149,6 @@ def st_plot_section():
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True)
        fig.update_yaxes(exponentformat='E')
        fig.update_layout(hovermode="x")
-       if ref_line:
-              fig.add_hline(y=100)
        if points:
             fig.update_traces(boxpoints='all',jitter=0.05)
        else:
@@ -286,7 +283,8 @@ def add_plot_settings_to_sidebar():
        global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,updated_default_dict,ref_line
 
        
-       updated_default_dict=set_values_from_url(default_dict)
+       # updated_default_dict=set_values_from_url(default_dict)
+       updated_default_dict=default_dict
        
        plot_settings=st.sidebar.expander("Plot Settings")
        plot_settings.subheader('Plot Widgets')
@@ -449,6 +447,7 @@ def main():
               get_filters_and_add_widgets_to_sidebar(df)
               
               add_plot_settings_to_sidebar()
+              # set_values_from_url()
               update_parameters_in_link()
               filter_data()
               st_filtered_data_section()
@@ -456,6 +455,7 @@ def main():
               st_plot_section()
               # st_plot2_section()
               percent_survaviaviluty_section()
+              
               
               
 if __name__=='__main__':
