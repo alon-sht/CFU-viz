@@ -448,7 +448,7 @@ def main():
               
               add_plot_settings_to_sidebar()
               # set_values_from_url()
-              update_parameters_in_link()
+              # update_parameters_in_link()
               filter_data()
               st_filtered_data_section()
               # add_custom_name_column()
