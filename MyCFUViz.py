@@ -139,8 +139,7 @@ def st_plot_section():
             fig.update_traces(boxpoints=None)
        hover_plot = px.bar(df, x="custom_name", y=[y_val] * len(df["custom_name"]),
                                    barmode="overlay",hover_data=cols,facet_col=facet,log_y=log)
-       hover_plot.update_traces(width=boxwidth, opacity=0.5,
-                                   )             
+       hover_plot.update_traces(width=boxwidth, opacity=0,)             
        hover_plot.update_layout(yaxis_range=[0,max_val])
        if show_metadata_on_hover:
               fig.add_traces(hover_plot.data)
@@ -315,16 +314,16 @@ def percent_survaviaviluty_section():
        fig.update_xaxes(showticklabels=xlabels)
 
        if log: 
-              max_val=np.log10(df[y_variables].max().max())+0.5
-              min_val=np.log10(df[y_variables].min().min())-0.5
+              max_val=np.log10(df[y_norm].max().max())+0.5
+              min_val=np.log10(df[y_norm].min().min())-0.5
               if start_at_one:
                      fig.update_layout(yaxis_range=[0,max_val])
               else:
                      fig.update_layout(yaxis_range=[min_val,max_val])
                      
        else:
-              max_val=df[y_variables].max().max()*1.05
-              min_val=df[y_variables].min().min()*0.95
+              max_val=df[y_norm].max().max()*1.05
+              min_val=df[y_norm].min().min()*0.95
               if start_at_one:
                      fig.update_layout(yaxis_range=[0,max_val])
               else:
