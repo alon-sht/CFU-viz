@@ -235,34 +235,34 @@ def st_plot_section():
 
 def get_ylim(df,y,force_disable_axis_start_at_one):
        #Get limit of y axis based on parameters
-       if log: 
+       if log and not force_disable_axis_start_at_one:
               max_val=np.log10(df[y].max().max())+0.5
               y_val=10**max_val
-              min_val=np.log10(df[y].min().min())-0.5
-              if start_at_one and not force_disable_axis_start_at_one:
-                    return [0,max_val]
-              else:
-                     return [min_val,max_val]
-                     
+              min_val=np.log10(df[y].min().min())-0.5              
        else:
               max_val=df[y].max().max()*1.05
               y_val=max_val
-              min_val=df[y].min().min()*0.95
-              if start_at_one and not force_disable_axis_start_at_one:
-                     return [0,max_val]
+              if df[y].min().min()>0:
+                     min_val=df[y].min().min()*0.95
               else:
-                     return [min_val,max_val]
+                     min_val=df[y].min().min()*1.05
+       if start_at_one and not force_disable_axis_start_at_one:
+              return [0,max_val,y_val]
+       elif not start_at_one:
+              return [min_val,max_val,y_val]
          
          
 def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_axis_start_at_one=False):
     
        if color:
               df[color]=df[color].astype(str)
-       if force_disable_log: logy=False 
-       else: logy=log
+       if force_disable_log: 
+              logy=False 
+       else: 
+              logy=log
        fig=px.box(df,x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet)
        
-       min_val,max_val=get_ylim(df,y,force_disable_axis_start_at_one)
+       min_val,max_val,y_val=get_ylim(df,y,force_disable_axis_start_at_one)
        fig.update_layout(yaxis_range=[min_val,max_val],font=dict(size=font_size,),hovermode="x")
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True,showticklabels=xlabels)
@@ -273,7 +273,7 @@ def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_ax
        else:
               fig.update_traces(boxpoints=None)
               
-       hover_plot = px.bar(df, x="custom_name", y=[max_val] * len(df["custom_name"]),
+       hover_plot = px.bar(df, x="custom_name", y=[y_val] * len(df["custom_name"]),
                                           barmode="overlay",hover_data=cols,facet_col=facet,log_y=log,color=color)
        hover_plot.update_traces(width=boxwidth, opacity=0,showlegend=False)
        hover_plot.update_layout(yaxis_range=[0,max_val])
