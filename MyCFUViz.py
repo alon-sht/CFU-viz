@@ -8,20 +8,7 @@ from PIL import Image
 # %%
 st.set_page_config(layout="wide",page_title="MyCFUViz",page_icon=Image.open("fav.ico"))
 pd.options.display.float_format = '{:,.2f}'.format
-# hide_streamlit_style = """
-#               <style>
-#               footer {visibility: hidden;}
-#               [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
-#                      width: 500px;
-#                      }
-#               [data-testid="stSidebar"][aria-expanded="false"] > div:first-child {
-#                      width: 500px;
-#                      margin-left: -500px;
-#                      }
-#             </style>
-#             """
-            
-            
+
 
 hide_streamlit_style = """
               <style>
@@ -43,7 +30,6 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 # %%
 y_variables=["Normalized_Count_1","Normalized_Count_2","Normalized_Count_3","Normalized_Count_4","Normalized_Count_5"]
 ignore_list=['Count_1','Count_2','Count_3','Count_4','Count_5','Average','LOG','STD','Average Dilutions','Average STD']
-
 default_dict={
                      'color':None,
                      'facet':None,
@@ -59,6 +45,8 @@ default_dict={
                      'ref_line':False
                      }
        
+       
+
 def st_header_section():
        # Set up header section of app
        head=st.columns(3)
@@ -73,9 +61,7 @@ def st_template_download():
        download_column.subheader("Template to use for the app")
        with open('Template_CFU.xlsx','rb') as f:
               download_column.download_button('Click Me to Download Template XLSX File',f,file_name='Template.xlsx')
-       download_column.text('Feel free to change the names of Sample Data columns or add new columns')
-       download_column.text('Other columns should not be changed')
-       # upload_data_widget=download_column.file_uploader(label='Upload File', type=['xlsx'],accept_multiple_files=True)
+       download_column.text('Feel free to change the names of Sample Data columns or add new columns. Other columns should not be changed')
 
 def st_file_upload_section():
        # Set up file upload section of app
@@ -95,6 +81,8 @@ def st_data_section():
        df=excel_to_df(upload_data_widget)
        data.write(df.astype(str))
        data_text.text("Data file loaded")
+
+
 def filter_data():
        # Filter data according to widgets
        global df_filtered, df_melt
@@ -105,121 +93,18 @@ def filter_data():
               df_filtered[y_variables]=df_filtered[y_variables].replace(0,1.00001)
        df_filtered['custom_name']=df_filtered[names].astype(str).agg('/'.join, axis=1)
        df_melt=pd.melt(df_filtered,id_vars=[x for x in df_filtered.columns if x not in y_variables+ignore_list],value_vars=y_variables)
-       
+
+
 def st_filtered_data_section():
        
        # Set up section where filtered data is shown
        filtered_data=st.expander("Filtered DataFrame (Click to Show)")
-       filtered_data.subheader('Filtered Data') 
+       filtered_data.subheader('Filtered Data')
        filtered_data.write(df_filtered.astype(str))
 
 
-def st_plot_section():
-       # Set up section where plots are shown
-       st_figure=st.container()
-       st_figure.subheader("Figures")
-       st_figure.subheader("CFU Plot")
-       show_metadata_on_hover=st_figure.checkbox("Show Metadata On Hover (When disabled - showing median/mean/min/max values)")
-       df=df_filtered
-       if color:
-              df[color]=df[color].astype(str)
-       fig=px.box(df,x='custom_name',y=y_variables,color=color,height=height,log_y=log,facet_col=facet)
-       if log: 
-              max_val=np.log10(df[y_variables].max().max())+0.5
-              y_val=10**max_val
-              min_val=np.log10(df[y_variables].min().min())-0.5
-              if start_at_one:
-                     fig.update_layout(yaxis_range=[0,max_val])
-              else:
-                     # fig.layout.yaxis.autorange=True
-                     fig.update_layout(yaxis_range=[min_val,max_val])
-                     
-       else:
-              max_val=df[y_variables].max().max()*1.05
-              y_val=max_val
-              min_val=df[y_variables].min().min()*0.95
-              if start_at_one:
-                     fig.update_layout(yaxis_range=[0,max_val])
-              else:
-                     fig.update_layout(yaxis_range=[min_val,max_val])
-                     # fig.layout.yaxis.autorange=True
-       fig.update_layout(font=dict(size=font_size,))      
-       fig.update_xaxes(showticklabels=xlabels)
-       fig.update_traces(width=boxwidth, boxmean=True)
-       fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True)
-       fig.update_yaxes(exponentformat='E')
-       fig.update_layout(hovermode="x")
-       if points:
-            fig.update_traces(boxpoints='all',jitter=0.05)
-       else:
-            fig.update_traces(boxpoints=None)
-       hover_plot = px.bar(df, x="custom_name", y=[y_val] * len(df["custom_name"]),
-                                   barmode="overlay",hover_data=cols,facet_col=facet,log_y=log)
-       hover_plot.update_traces(width=boxwidth, opacity=0,)             
-       hover_plot.update_layout(yaxis_range=[0,max_val])
-       if show_metadata_on_hover:
-              fig.add_traces(hover_plot.data)
-              # hover_plot.add_traces(fig.data)
-              
-              
-       # fig.add_traces(fig.data)
-       
-       st_figure.plotly_chart(fig,use_container_width=True)
-       # st_figure.plotly_chart(hover_plot,use_container_width=True)
 
 
-
-
-def st_plot2_section():
-       # Set up section where plots are shown
-       st_figure2=st.container()
-       st_figure2.subheader("Scatter")
-       val_to_show_scatter=st_figure2.selectbox("Metric to show", options=['Mean','Median','Min','Max'])
-       if val_to_show_scatter=='Min':
-              metric='min'
-       elif val_to_show_scatter=='Max':
-              metric='max'
-       elif val_to_show_scatter=='Median':
-              metric='median'
-       elif val_to_show_scatter=='Mean':
-              metric='mean'
-       df=df_melt.groupby(by=['custom_name']).agg(metric).reset_index()
-       df_std=df_melt.groupby(by=['custom_name']).agg('sem')
-   
-       if color:
-              df[color]=df[color].astype(str)
-       
-       fig=px.scatter(df,x='custom_name',y='value',color=color,height=height,log_y=log,facet_col=facet,error_y=df_std['value'])
-       if log: 
-              
-              if start_at_one:
-                     max_val=np.log10(df['value'].max())+0.5
-                     fig.update_layout(yaxis_range=[0,max_val])
-              else:
-                     fig.layout.yaxis.autorange=True
-                     
-       else:
-              if start_at_one:
-                     max_val=df['value'].max()*1.05
-                     fig.update_layout(yaxis_range=[0,max_val])
-              else:
-                     fig.layout.yaxis.autorange=True
-                     
-       
-       fig.update_layout(font=dict(size=font_size,))       
-       # fig.update_traces(width=boxwidth, boxmean=True)
-       fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True)
-       fig.update_yaxes(exponentformat='E')
-       # if points:
-       #      fig.update_traces(boxpoints='all')
-       # else:
-       #      fig.update_traces(boxpoints=None)
-       
-       
-
-        
-       with st.spinner(text="In progress..."):
-              st_figure2.plotly_chart(fig,use_container_width=True)
 
 def excel_to_df(upload_data_widget):
        # Get input: excel file
@@ -280,7 +165,7 @@ def get_filters_and_add_widgets_to_sidebar(df):
        
 def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
-       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,updated_default_dict,ref_line
+       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,updated_default_dict,ref_line,show_meta_on_hover
 
        
        # updated_default_dict=set_values_from_url(default_dict)
@@ -297,11 +182,9 @@ def add_plot_settings_to_sidebar():
        temp_opts=['SampleID/PlateID', 'Experiment', 'Bacteria', 'SampleOrigin',
        'TestedPhase', 'TimePoint', 'TestedAgent', 'TestedAgentDilution',
         'Plate']
-       agg_opts=[]
-       for opt in temp_opts:
-              if opt in cols:
-                     if len(df[opt].drop_duplicates())>1:
-                            agg_opts.append(opt)
+       #Choose columns by which to aggregate samples
+       #Remove columns that only have one value 
+       agg_opts = [opt for opt in temp_opts if opt in cols if len(df[opt].drop_duplicates())>1]
        if len(agg_opts)==0:
               agg_opts=['Average_by']
               
@@ -315,6 +198,7 @@ def add_plot_settings_to_sidebar():
        start_at_one=plot_settings.checkbox(label='Start Axis at 1', value=updated_default_dict['start_at_one'],)#disabled=True)
        remove_zero=plot_settings.checkbox(label='Remove Zero Values', value=updated_default_dict['remove_zero'])
        ref_line=plot_settings.checkbox(label='Draw Reference Line', value=updated_default_dict['ref_line'])
+       show_meta_on_hover=plot_settings.checkbox("Show Metadata On Hover",value=True)
        
 def set_values_from_url(defdict):
        for val in defdict.keys():
@@ -334,16 +218,80 @@ def set_values_from_url(defdict):
        
 def add_custom_name_column():
        df_filtered['custom_name']=df_filtered[names].astype(str).agg('/'.join, axis=1)
+
+
+def st_plot_section():
+       # Set up section where main cfu plot is shown 
+       st_figure=st.container()
+       st_figure.subheader("Figures")
+       st_figure.subheader("CFU Plot")
+       #Plot
+       fig=boxplot(df_filtered,y_variables,y_label='CFU')
+       st_figure.plotly_chart(fig,use_container_width=True)
        
+
+
+
+
+def get_ylim(df,y,force_disable_axis_start_at_one):
+       #Get limit of y axis based on parameters
+       if log: 
+              max_val=np.log10(df[y].max().max())+0.5
+              y_val=10**max_val
+              min_val=np.log10(df[y].min().min())-0.5
+              if start_at_one and not force_disable_axis_start_at_one:
+                    return [0,max_val]
+              else:
+                     return [min_val,max_val]
+                     
+       else:
+              max_val=df[y].max().max()*1.05
+              y_val=max_val
+              min_val=df[y].min().min()*0.95
+              if start_at_one and not force_disable_axis_start_at_one:
+                     return [0,max_val]
+              else:
+                     return [min_val,max_val]
+         
+         
+def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_axis_start_at_one=False):
+    
+       if color:
+              df[color]=df[color].astype(str)
+       if force_disable_log: logy=False 
+       else: logy=log
+       fig=px.box(df,x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet)
        
-def percent_survaviaviluty_section():
+       min_val,max_val=get_ylim(df,y,force_disable_axis_start_at_one)
+       fig.update_layout(yaxis_range=[min_val,max_val],font=dict(size=font_size,),hovermode="x")
+       fig.update_traces(width=boxwidth, boxmean=True)
+       fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True,showticklabels=xlabels)
+       fig.update_yaxes(exponentformat='E',title=y_label)
+
+       if points:
+              fig.update_traces(boxpoints='all',jitter=0.05)
+       else:
+              fig.update_traces(boxpoints=None)
+              
+       hover_plot = px.bar(df, x="custom_name", y=[max_val] * len(df["custom_name"]),
+                                          barmode="overlay",hover_data=cols,facet_col=facet,log_y=log,color=color)
+       hover_plot.update_traces(width=boxwidth, opacity=0,showlegend=False)
+       hover_plot.update_layout(yaxis_range=[0,max_val])
+       if show_meta_on_hover:
+              fig.add_traces(hover_plot.data)
+       if ref_line:
+              fig.add_hline(y=ref_val)
+    
+       return fig
+
+def choose_reference():
+       global ref_value
        st.markdown('---')
-       st_survivability=st.container()
-       st_survivability.subheader("% Survivability Plot")
-       df=df_filtered
-       choose_ref_sample=st_survivability.selectbox(label='Reference Sample',options=df_filtered['custom_name'].unique())
-       choose_ref_type=st_survivability.selectbox(label='Min/Max/Mean/Median',options=['Mean','Median','Min','Max',])
-       ref_opts=df[df['custom_name'].isin([choose_ref_sample])][y_variables]
+       st_choose_ref_sample=st.container()
+       st_choose_ref_sample.subheader("Choose Reference Sample")
+       choose_ref_sample=st_choose_ref_sample.selectbox(label='Reference Sample',options=df_filtered['custom_name'].unique())
+       choose_ref_type=st_choose_ref_sample.selectbox(label='Min/Max/Mean/Median',options=['Mean','Median','Min','Max',])
+       ref_opts=df_filtered[df_filtered['custom_name'].isin([choose_ref_sample])][y_variables]
        if choose_ref_type=='Min':
               ref_value=ref_opts.min().min()
        elif choose_ref_type=='Max':
@@ -352,69 +300,37 @@ def percent_survaviaviluty_section():
               ref_value=ref_opts.median().median()
        elif choose_ref_type=='Mean':
               ref_value=ref_opts.mean().mean()
-       st_survivability.text(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n Chosen reference value is {ref_value}")
-       y_norm=[val+'%' for val in y_variables]
-       df[y_norm]=df[y_variables]*100/ref_value
-       
-       y_ref_excluded=[val+'_ref_excluded' for val in y_variables]
-       df[y_ref_excluded]=df[y_variables]-ref_value
-       # st_survivability.text(df)
-       if color:
-              df[color]=df[color].astype(str)
-       fig=px.box(df,x='custom_name',y=y_norm,color=color,height=height,log_y=log,facet_col=facet,)
-       fig.update_xaxes(showticklabels=xlabels)
+       st_choose_ref_sample.text(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n Chosen reference value is {ref_value}")
 
-       if log: 
-              max_val=np.log10(df[y_norm].max().max())+0.5
-              min_val=np.log10(df[y_norm].min().min())-0.5
-              if start_at_one:
-                     fig.update_layout(yaxis_range=[0,max_val])
-              else:
-                     fig.update_layout(yaxis_range=[min_val,max_val])
-                     
-       else:
-              max_val=df[y_norm].max().max()*1.05
-              min_val=df[y_norm].min().min()*0.95
-              if start_at_one:
-                     fig.update_layout(yaxis_range=[0,max_val])
-              else:
-                     fig.update_layout(yaxis_range=[min_val,max_val])
-                     
-       fig.update_traces(width=boxwidth, boxmean=True)
-       fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1)
-       fig.update_yaxes(exponentformat='E')
-       fig.update_layout(font=dict(size=font_size,))
-       fig.update_layout(hovermode="x")
-       if ref_line:
-              fig.add_hline(y=100)
-       if points:
-            fig.update_traces(boxpoints='all')
-       else:
-            fig.update_traces(boxpoints=None)
-       with st.spinner(text="In progress..."):
-              st_survivability.plotly_chart(fig,use_container_width=True)
-       # st_survivability
+ 
+def percent_survaviability_plot_section():
+       st.markdown('---')
+       st_survivability=st.container()
+       st_survivability.subheader("% Survivability Plot")
+       
+       # Calculate % out of reference
+       y_norm=[val+'%' for val in y_variables]
+       df_filtered[y_norm]=df_filtered[y_variables]*100/ref_value
+       
+       
+       #Plot % out of reference plot
+       fig=boxplot(df_filtered,y_norm,ref_val=100,y_label='% Survivability')
+       st_survivability.plotly_chart(fig,use_container_width=True)
+       
+def ref_excluded_plot_section():       
        
        st.markdown('---')
        st_survivability=st.container()
        st_survivability.subheader("Values minus reference Plot")
-       st_survivability.text("Referece subtracted from the rest of the values.")
-       st_survivability.text("Uses the reference sample chosen in the previous section.")
-       fig2=px.box(df,x='custom_name',y=y_ref_excluded,color=color,height=height,facet_col=facet,)
-       fig2.update_xaxes(showticklabels=xlabels)
-       fig2.update_traces(width=boxwidth, boxmean=True)
-       fig2.update_xaxes(tickangle=90,matches=None,title=None,dtick=1)
-       fig2.update_yaxes(exponentformat='E')
-       if ref_line:
-              fig2.add_hline(y=0)
-       if points:
-            fig2.update_traces(boxpoints='all')
-       else:
-            fig2.update_traces(boxpoints=None)
-       with st.spinner(text="In progress..."):
-              st_survivability.plotly_chart(fig2,use_container_width=True)
+       st_survivability.text("Referece subtracted from the rest of the values. Uses the reference sample chosen in the previous section.")
        
+       # Calculate values by subtracting value of ref sample
+       y_ref_excluded=[val+'_ref_excluded' for val in y_variables]
+       df_filtered[y_ref_excluded]=df_filtered[y_variables]-ref_value
        
+       #Plotting, force disable log and force disable start at one. 
+       fig2=boxplot(df_filtered,y_ref_excluded,ref_val=0,force_disable_log=True,force_disable_axis_start_at_one=True)
+       st_survivability.plotly_chart(fig2,use_container_width=True)
        
        
        
@@ -454,9 +370,9 @@ def main():
               # add_custom_name_column()
               st_plot_section()
               # st_plot2_section()
-              percent_survaviaviluty_section()
-              
-              
+              choose_reference()
+              percent_survaviability_plot_section()
+              ref_excluded_plot_section()
               
 if __name__=='__main__':
        main()
