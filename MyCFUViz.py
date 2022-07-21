@@ -43,6 +43,22 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 # %%
 y_variables=["Normalized_Count_1","Normalized_Count_2","Normalized_Count_3","Normalized_Count_4","Normalized_Count_5"]
 ignore_list=['Count_1','Count_2','Count_3','Count_4','Count_5','Average','LOG','STD','Average Dilutions','Average STD']
+
+default_dict={
+                     'color':None,
+                     'facet':None,
+                     'height':500,
+                     'names':"Average_by",
+                     'boxwidth':0.8,
+                     'points':False,
+                     'log':True,
+                     'remove_zero':True,
+                     'start_at_one':False,
+                     'font_size':14,
+                     'xlabels':True,
+                     'ref_line':False
+                     }
+       
 def st_header_section():
        # Set up header section of app
        head=st.columns(3)
@@ -134,6 +150,8 @@ def st_plot_section():
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True)
        fig.update_yaxes(exponentformat='E')
        fig.update_layout(hovermode="x")
+       if ref_line:
+              fig.add_hline(y=100)
        if points:
             fig.update_traces(boxpoints='all',jitter=0.05)
        else:
@@ -199,6 +217,10 @@ def st_plot2_section():
        #      fig.update_traces(boxpoints='all')
        # else:
        #      fig.update_traces(boxpoints=None)
+       
+       
+
+        
        with st.spinner(text="In progress..."):
               st_figure2.plotly_chart(fig,use_container_width=True)
 
@@ -235,8 +257,9 @@ def add_logo_and_links_to_sidebar():
        
 def get_filters_and_add_widgets_to_sidebar(df):
        # Parse the df and get filter widgets based on columns
+       
+       global query, widget_dict
        widget_dict={}
-       global query
        query=f""
        st.sidebar.header('Widgets',)
        filter_widgets=st.sidebar.expander("Data Filters. After choosing filters press the button at the bottom.")
@@ -257,16 +280,22 @@ def get_filters_and_add_widgets_to_sidebar(df):
                      query+=f"`{y}`  in {widget_dict[y]} & "
        form.form_submit_button("Fiter Data")
        
+       
 def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
-       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels
+       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,updated_default_dict,ref_line
+
+       
+       updated_default_dict=set_values_from_url(default_dict)
+       
        plot_settings=st.sidebar.expander("Plot Settings")
        plot_settings.subheader('Plot Widgets')
-       color=plot_settings.selectbox(label='Color',options=[None]+cols,index=0)
-       facet=plot_settings.selectbox(label='Facet',options=[None]+cols,index=0)
-       height=plot_settings.slider(label='Height',min_value=300,max_value=1200,value=500,step=50)
-       font_size=plot_settings.slider(label='Font Size',min_value=1,max_value=25,value=14)
-       
+       # plot_settings.button("Reset Defaults",on_click=reset_all_defaults)
+       multi_options=[None]+cols
+       color=plot_settings.selectbox(label='Color',options=multi_options,index=multi_options.index(updated_default_dict['color']))
+       facet=plot_settings.selectbox(label='Facet',options=multi_options,index=multi_options.index(updated_default_dict['facet']))
+       height=plot_settings.slider(label='Height',min_value=300,max_value=1200,value=int(updated_default_dict['height']),step=50)
+       font_size=plot_settings.slider(label='Font Size',min_value=1,max_value=25,value=int(updated_default_dict['font_size']))
        temp_opts=['SampleID/PlateID', 'Experiment', 'Bacteria', 'SampleOrigin',
        'TestedPhase', 'TimePoint', 'TestedAgent', 'TestedAgentDilution',
         'Plate']
@@ -284,6 +313,13 @@ def add_plot_settings_to_sidebar():
        log=plot_settings.checkbox(label='Log Y Axis', value=True)
        start_at_one=plot_settings.checkbox(label='Start Axis at 1', value=False,)#disabled=True)
        remove_zero=plot_settings.checkbox(label='Remove Zero Values', value=True)
+       boxwidth=plot_settings.slider(label='Box Width',min_value=0.1,max_value=1.0,value=float(updated_default_dict['boxwidth']),step=0.1)
+       points=plot_settings.checkbox(label='Show Points', value=updated_default_dict['points'])
+       xlabels=plot_settings.checkbox(label='Show X axis labels', value=updated_default_dict['xlabels'])
+       log=plot_settings.checkbox(label='Log Y Axis', value=updated_default_dict['log'])
+       start_at_one=plot_settings.checkbox(label='Start Axis at 1', value=updated_default_dict['start_at_one'],)#disabled=True)
+       remove_zero=plot_settings.checkbox(label='Remove Zero Values', value=updated_default_dict['remove_zero'])
+       ref_line=plot_settings.checkbox(label='Draw Reference Line', value=updated_default_dict['ref_line'])
        
 def add_custom_name_column():
        df_filtered['custom_name']=df_filtered[names].astype(str).agg('/'.join, axis=1)
@@ -295,7 +331,7 @@ def percent_survaviaviluty_section():
        st_survivability.subheader("% Survivability Plot")
        df=df_filtered
        choose_ref_sample=st_survivability.selectbox(label='Reference Sample',options=df_filtered['custom_name'].unique())
-       choose_ref_type=st_survivability.selectbox(label='Min/Max/Mean/Median',options=['Min','Max','Mean','Median'])
+       choose_ref_type=st_survivability.selectbox(label='Min/Max/Mean/Median',options=['Mean','Median','Min','Max',])
        ref_opts=df[df['custom_name'].isin([choose_ref_sample])][y_variables]
        if choose_ref_type=='Min':
               ref_value=ref_opts.min().min()
@@ -308,6 +344,9 @@ def percent_survaviaviluty_section():
        st_survivability.text(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n Chosen reference value is {ref_value}")
        y_norm=[val+'%' for val in y_variables]
        df[y_norm]=df[y_variables]*100/ref_value
+       
+       y_ref_excluded=[val+'_ref_excluded' for val in y_variables]
+       df[y_ref_excluded]=df[y_variables]-ref_value
        # st_survivability.text(df)
        if color:
               df[color]=df[color].astype(str)
@@ -335,6 +374,8 @@ def percent_survaviaviluty_section():
        fig.update_yaxes(exponentformat='E')
        fig.update_layout(font=dict(size=font_size,))
        fig.update_layout(hovermode="x")
+       if ref_line:
+              fig.add_hline(y=100)
        if points:
             fig.update_traces(boxpoints='all')
        else:
@@ -343,9 +384,45 @@ def percent_survaviaviluty_section():
               st_survivability.plotly_chart(fig,use_container_width=True)
        # st_survivability
        
+       st.markdown('---')
+       st_survivability=st.container()
+       st_survivability.subheader("Values minus reference Plot")
+       st_survivability.text("Referece subtracted from the rest of the values.")
+       st_survivability.text("Uses the reference sample chosen in the previous section.")
+       fig2=px.box(df,x='custom_name',y=y_ref_excluded,color=color,height=height,facet_col=facet,)
+       fig2.update_xaxes(showticklabels=xlabels)
+       fig2.update_traces(width=boxwidth, boxmean=True)
+       fig2.update_xaxes(tickangle=90,matches=None,title=None,dtick=1)
+       fig2.update_yaxes(exponentformat='E')
+       if ref_line:
+              fig2.add_hline(y=0)
+       if points:
+            fig2.update_traces(boxpoints='all')
+       else:
+            fig2.update_traces(boxpoints=None)
+       with st.spinner(text="In progress..."):
+              st_survivability.plotly_chart(fig2,use_container_width=True)
        
        
        
+       
+       
+def update_parameters_in_link():
+              st.experimental_set_query_params(
+                     color=color, 
+                     facet=facet, 
+                     height=height, 
+                     names=names, 
+                     boxwidth=boxwidth, 
+                     points=points, 
+                     log=log, 
+                     remove_zero=remove_zero, 
+                     start_at_one=start_at_one, 
+                     font_size=font_size, 
+                     xlabels=xlabels, 
+                     **widget_dict
+                     )
+              
 
 def main():
        # Main part of the app
