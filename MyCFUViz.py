@@ -306,13 +306,10 @@ def add_plot_settings_to_sidebar():
                             agg_opts.append(opt)
        if len(agg_opts)==0:
               agg_opts=['Average_by']
+              
+
+       
        names=plot_settings.multiselect(label='Name Samples By Chosen Columns',options=cols,default=agg_opts)
-       boxwidth=plot_settings.slider(label='Box Width',min_value=0.1,max_value=1.0,value=0.8,step=0.1)
-       points=plot_settings.checkbox(label='Show Points', value=False)
-       xlabels=plot_settings.checkbox(label='Show X axis labels', value=True)
-       log=plot_settings.checkbox(label='Log Y Axis', value=True)
-       start_at_one=plot_settings.checkbox(label='Start Axis at 1', value=False,)#disabled=True)
-       remove_zero=plot_settings.checkbox(label='Remove Zero Values', value=True)
        boxwidth=plot_settings.slider(label='Box Width',min_value=0.1,max_value=1.0,value=float(updated_default_dict['boxwidth']),step=0.1)
        points=plot_settings.checkbox(label='Show Points', value=updated_default_dict['points'])
        xlabels=plot_settings.checkbox(label='Show X axis labels', value=updated_default_dict['xlabels'])
@@ -320,6 +317,22 @@ def add_plot_settings_to_sidebar():
        start_at_one=plot_settings.checkbox(label='Start Axis at 1', value=updated_default_dict['start_at_one'],)#disabled=True)
        remove_zero=plot_settings.checkbox(label='Remove Zero Values', value=updated_default_dict['remove_zero'])
        ref_line=plot_settings.checkbox(label='Draw Reference Line', value=updated_default_dict['ref_line'])
+       
+def set_values_from_url(defdict):
+       for val in defdict.keys():
+              if val in st.experimental_get_query_params().keys():
+                     defdict[val]=st.experimental_get_query_params()[val][0]
+                     if defdict[val]=='None':
+                            defdict[val]=None
+                     elif defdict[val]=='True':
+                            defdict[val]=True
+                     elif defdict[val]=='False':
+                            defdict[val]=False
+       return defdict
+
+# def reset_all_defaults():
+#        updated_default_dict=default_dict
+       
        
 def add_custom_name_column():
        df_filtered['custom_name']=df_filtered[names].astype(str).agg('/'.join, axis=1)
@@ -436,6 +449,7 @@ def main():
               get_filters_and_add_widgets_to_sidebar(df)
               
               add_plot_settings_to_sidebar()
+              update_parameters_in_link()
               filter_data()
               st_filtered_data_section()
               # add_custom_name_column()
