@@ -133,6 +133,7 @@ def st_plot_section():
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True)
        fig.update_yaxes(exponentformat='E')
+       fig.update_layout(hovermode="x")
        if points:
             fig.update_traces(boxpoints='all',jitter=0.05)
        else:
@@ -333,6 +334,7 @@ def percent_survaviaviluty_section():
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1)
        fig.update_yaxes(exponentformat='E')
        fig.update_layout(font=dict(size=font_size,))
+       fig.update_layout(hovermode="x")
        if points:
             fig.update_traces(boxpoints='all')
        else:
