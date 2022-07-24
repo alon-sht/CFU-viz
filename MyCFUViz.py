@@ -38,11 +38,12 @@ default_dict={
                      'boxwidth':0.8,
                      'points':False,
                      'log':True,
-                     'remove_zero':True,
+                     'remove_zero':False,
                      'start_at_one':False,
                      'font_size':14,
                      'xlabels':True,
-                     'ref_line':False
+                     'ref_line':False,
+                     'manually_sort_values':False
                      }
        
        
@@ -91,6 +92,8 @@ def filter_data():
               df_filtered[y_variables]=df_filtered[y_variables].replace(0,np.nan)
        else:
               df_filtered[y_variables]=df_filtered[y_variables].replace(0,1.00001)
+       if manually_sort_values and 'TestedAgentDilution' in df.columns:
+              df_filtered=df_filtered.sort_values(by=sort_by,ascending=sort_by_ascending)
        df_filtered['custom_name']=df_filtered[names].astype(str).agg('/'.join, axis=1)
        df_melt=pd.melt(df_filtered,id_vars=[x for x in df_filtered.columns if x not in y_variables+ignore_list],value_vars=y_variables)
 
@@ -162,10 +165,51 @@ def get_filters_and_add_widgets_to_sidebar(df):
                      query+=f"`{y}`  in {widget_dict[y]} & "
        form.form_submit_button("Fiter Data")
        
+def add_df_sort_settings_to_sidebar():
+       global sort_by,manually_sort_values,sort_by_ascending
+       
+       df_sort_st=st.sidebar.expander("Data Sort Settings")
+       df_sort_st.subheader('Data Sort Settings')
+       updated_default_dict=default_dict
+       multi_options=[None]+cols
+       
+       
+       manually_sort_values=df_sort_st.checkbox(label='Manually Sort Values', value=updated_default_dict['manually_sort_values'])
+       
+       if "Experiment" in multi_options: val1=multi_options.index("Experiment")
+       else: val1=0
+       sort1=df_sort_st.selectbox('Sort By (1)',options=multi_options,index=val1)
+       sort1_ascending=df_sort_st.checkbox("Ascending? (1)",value=False)
+       if "TimePoint" in multi_options: val2=multi_options.index("TimePoint")
+       else: val2=0
+       sort2=df_sort_st.selectbox('Sort By (2)',options=multi_options,index=val2)
+       sort2_ascending=df_sort_st.checkbox("Ascending? (2)",value=False)
+       if "TestedPhase" in multi_options: val3=multi_options.index("TestedPhase")
+       else: val3=0
+       sort3=df_sort_st.selectbox('Sort By (3)',options=multi_options,index=val3)
+       sort3_ascending=df_sort_st.checkbox("Ascending? (3)",value=False)
+       if "TestedAgent" in multi_options: val4=multi_options.index("TestedAgent")
+       else: val4=0
+       sort4=df_sort_st.selectbox('Sort By (4)',options=multi_options,index=val4)
+       sort4_ascending=df_sort_st.checkbox("Ascending? (4)",value=False)
+       if "TestedAgentDilution" in multi_options: val5=multi_options.index("TestedAgentDilution")
+       else: val5=0
+       sort5=df_sort_st.selectbox('Sort By (5)',options=multi_options,index=val5)
+       sort5_ascending=df_sort_st.checkbox("Ascending? (5)",value=False)
+       
+       sort_by=[sort1,sort2,sort3,sort4,sort5]
+       sort_by=[x for x in sort_by if x]
+       print(sort_by)
+       sort_by_ascending=[sort1_ascending,sort2_ascending,sort3_ascending,sort4_ascending,sort5_ascending]
+       sort_by_ascending=[sort_by_ascending[i] for i,x in enumerate(sort_by) if x]
+       print(sort_by_ascending)
+       
+       
+
        
 def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
-       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,updated_default_dict,ref_line,show_meta_on_hover
+       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,updated_default_dict,ref_line,show_meta_on_hover,multi_options
 
        
        # updated_default_dict=set_values_from_url(default_dict)
@@ -361,7 +405,7 @@ def main():
               
               add_logo_and_links_to_sidebar()
               get_filters_and_add_widgets_to_sidebar(df)
-              
+              add_df_sort_settings_to_sidebar()
               add_plot_settings_to_sidebar()
               # set_values_from_url()
               # update_parameters_in_link()
