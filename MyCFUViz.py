@@ -175,23 +175,29 @@ def add_df_sort_settings_to_sidebar():
        
        
        manually_sort_values=df_sort_st.checkbox(label='Manually Sort Values', value=updated_default_dict['manually_sort_values'])
+       df_sort_st.markdown('Pick up to five parameters to sort by. Note the order and whether they are in ascending or descending order.')
+       df_sort_st.markdown('---')
        
        if "Experiment" in multi_options: val1=multi_options.index("Experiment")
        else: val1=0
        sort1=df_sort_st.selectbox('Sort By (1)',options=multi_options,index=val1)
        sort1_ascending=df_sort_st.checkbox("Ascending? (1)",value=False)
+       df_sort_st.markdown('---')
        if "TimePoint" in multi_options: val2=multi_options.index("TimePoint")
        else: val2=0
        sort2=df_sort_st.selectbox('Sort By (2)',options=multi_options,index=val2)
        sort2_ascending=df_sort_st.checkbox("Ascending? (2)",value=False)
+       df_sort_st.markdown('---')
        if "TestedPhase" in multi_options: val3=multi_options.index("TestedPhase")
        else: val3=0
        sort3=df_sort_st.selectbox('Sort By (3)',options=multi_options,index=val3)
        sort3_ascending=df_sort_st.checkbox("Ascending? (3)",value=False)
+       df_sort_st.markdown('---')
        if "TestedAgent" in multi_options: val4=multi_options.index("TestedAgent")
        else: val4=0
        sort4=df_sort_st.selectbox('Sort By (4)',options=multi_options,index=val4)
        sort4_ascending=df_sort_st.checkbox("Ascending? (4)",value=False)
+       df_sort_st.markdown('---')
        if "TestedAgentDilution" in multi_options: val5=multi_options.index("TestedAgentDilution")
        else: val5=0
        sort5=df_sort_st.selectbox('Sort By (5)',options=multi_options,index=val5)
@@ -199,17 +205,19 @@ def add_df_sort_settings_to_sidebar():
        
        sort_by=[sort1,sort2,sort3,sort4,sort5]
        sort_by=[x for x in sort_by if x]
-       print(sort_by)
+       # print(sort_by)
        sort_by_ascending=[sort1_ascending,sort2_ascending,sort3_ascending,sort4_ascending,sort5_ascending]
        sort_by_ascending=[sort_by_ascending[i] for i,x in enumerate(sort_by) if x]
-       print(sort_by_ascending)
+       # print(sort_by_ascending)
        
        
 
        
 def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
-       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,updated_default_dict,ref_line,show_meta_on_hover,multi_options
+       global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,\
+                     updated_default_dict,ref_line,show_meta_on_hover,multi_options,ylim_top,ylim_bottom,\
+                            manually_set_ylim,log_ylim,ylim_values
 
        
        # updated_default_dict=set_values_from_url(default_dict)
@@ -236,6 +244,13 @@ def add_plot_settings_to_sidebar():
        
        names=plot_settings.multiselect(label='Name Samples By Chosen Columns',options=cols,default=agg_opts)
        boxwidth=plot_settings.slider(label='Box Width',min_value=0.1,max_value=1.0,value=float(updated_default_dict['boxwidth']),step=0.1)
+       plot_settings.markdown("---")
+       manually_set_ylim=plot_settings.checkbox("Manually Set Y-Lim", value=False)
+       
+       ylim_top=plot_settings.slider(label='Manually set ylim (max)',min_value=-20,max_value=20,value=0)
+       ylim_bottom=plot_settings.slider(label='Manually set ylim (min)',min_value=-20,max_value=20,value=0)
+       ylim_values=plot_settings.markdown(f"")
+       plot_settings.markdown("---")
        points=plot_settings.checkbox(label='Show Points', value=updated_default_dict['points'])
        xlabels=plot_settings.checkbox(label='Show X axis labels', value=updated_default_dict['xlabels'])
        log=plot_settings.checkbox(label='Log Y Axis', value=updated_default_dict['log'])
@@ -306,7 +321,16 @@ def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_ax
               logy=log
        fig=px.box(df,x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet)
        
-       min_val,max_val,y_val=get_ylim(df,y,force_disable_axis_start_at_one)
+       if manually_set_ylim:
+              how_to_set_ylim='manually'
+              if (not log) or (force_disable_log):
+                     min_val,max_val,y_val=(ylim_bottom/abs(ylim_bottom))*10**abs(ylim_bottom),10**ylim_top,10**ylim_top
+              else:       
+                     min_val,max_val,y_val=ylim_bottom,ylim_top,ylim_top
+       else:
+              how_to_set_ylim='automatically'
+              min_val,max_val,y_val=get_ylim(df,y,force_disable_axis_start_at_one)
+       ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set to {min_val} and {max_val}")
        fig.update_layout(yaxis_range=[min_val,max_val],font=dict(size=font_size,),hovermode="x")
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True,showticklabels=xlabels)
