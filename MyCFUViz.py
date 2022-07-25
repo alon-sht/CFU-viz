@@ -5,6 +5,9 @@ import numpy as np
 from io import BytesIO
 import streamlit as st
 from PIL import Image
+import warnings
+
+
 # %%
 st.set_page_config(layout="wide",page_title="MyCFUViz",page_icon=Image.open("fav.ico"))
 pd.options.display.float_format = '{:,.2f}'.format
@@ -87,7 +90,7 @@ def st_data_section():
 def filter_data():
        # Filter data according to widgets
        global df_filtered, df_melt
-       df_filtered=df.query(query[:-2])
+       df_filtered=df.copy().query(query[:-2])
        if remove_zero:
               df_filtered[y_variables]=df_filtered[y_variables].replace(0,np.nan)
        else:
@@ -113,6 +116,7 @@ def excel_to_df(upload_data_widget):
        # Get input: excel file
        # Return pandas df
        global cols, df
+       warnings.simplefilter(action='ignore', category=UserWarning)
        if len(upload_data_widget)==1:
               df=pd.read_excel(BytesIO(
                     upload_data_widget[0].getvalue()), skiprows=1).round(3)
@@ -247,8 +251,9 @@ def add_plot_settings_to_sidebar():
        plot_settings.markdown("---")
        manually_set_ylim=plot_settings.checkbox("Manually Set Y-Lim", value=False)
        
-       ylim_top=plot_settings.slider(label='Manually set ylim (max)',min_value=-20,max_value=20,value=0)
-       ylim_bottom=plot_settings.slider(label='Manually set ylim (min)',min_value=-20,max_value=20,value=0)
+       ylim_bottom,ylim_top=plot_settings.slider(label='Manually set ylim',min_value=-20.0,max_value=20.0,value=[-1.0,8.0],step=0.5)
+       plot_settings.markdown("*If the chosen value is x, positive are 10^x, while negative x values are -10^x")
+       # ylim_bottom=plot_settings.slider(label='Manually set ylim (min)',min_value=-20,max_value=20,value=0)
        ylim_values=plot_settings.markdown(f"")
        plot_settings.markdown("---")
        points=plot_settings.checkbox(label='Show Points', value=updated_default_dict['points'])
@@ -292,7 +297,7 @@ def st_plot_section():
 
 
 
-def get_ylim(df,y,force_disable_axis_start_at_one):
+def get_ylim(df,y,force_disable_axis_start_at_one,force_disable_log):
        #Get limit of y axis based on parameters
        if log and not force_disable_axis_start_at_one:
               max_val=np.log10(df[y].max().max())+0.5
@@ -305,10 +310,20 @@ def get_ylim(df,y,force_disable_axis_start_at_one):
                      min_val=df[y].min().min()*0.95
               else:
                      min_val=df[y].min().min()*1.05
-       if start_at_one and not force_disable_axis_start_at_one:
-              return [0,max_val,y_val]
-       elif not start_at_one:
-              return [min_val,max_val,y_val]
+       if manually_set_ylim:
+              how_to_set_ylim='manually'
+              if (log) and (not force_disable_log):
+                     return [ylim_bottom,ylim_top,ylim_top,how_to_set_ylim]
+              elif ylim_bottom!=0:       
+                     return [int(ylim_bottom/abs(ylim_bottom))*10**abs(ylim_bottom),10**ylim_top,10**ylim_top,how_to_set_ylim]
+              else:
+                     return [1,10**ylim_top,10**ylim_top,how_to_set_ylim]
+       else:
+              how_to_set_ylim='automatically'
+              if start_at_one and not force_disable_axis_start_at_one:
+                     return [0,max_val,y_val,how_to_set_ylim]
+              elif not start_at_one:
+                     return [min_val,max_val,y_val,how_to_set_ylim]
          
          
 def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_axis_start_at_one=False):
@@ -320,17 +335,13 @@ def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_ax
        else: 
               logy=log
        fig=px.box(df,x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet)
-       
-       if manually_set_ylim:
-              how_to_set_ylim='manually'
-              if (not log) or (force_disable_log):
-                     min_val,max_val,y_val=(ylim_bottom/abs(ylim_bottom))*10**abs(ylim_bottom),10**ylim_top,10**ylim_top
-              else:       
-                     min_val,max_val,y_val=ylim_bottom,ylim_top,ylim_top
+       min_val,max_val,y_val,how_to_set_ylim=get_ylim(df,y,force_disable_axis_start_at_one,force_disable_log)
+       if how_to_set_ylim=='automatically':
+              ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set")
        else:
-              how_to_set_ylim='automatically'
-              min_val,max_val,y_val=get_ylim(df,y,force_disable_axis_start_at_one)
-       ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set to {min_val} and {max_val}")
+              ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set to {min_val: .1E} and {max_val: .1E}")
+       
+       
        fig.update_layout(yaxis_range=[min_val,max_val],font=dict(size=font_size,),hovermode="x")
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True,showticklabels=xlabels)
