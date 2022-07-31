@@ -36,7 +36,7 @@ ignore_list=['Count_1','Count_2','Count_3','Count_4','Count_5','Average','LOG','
 default_dict={
                      'color':None,
                      'facet':None,
-                     'height':700,
+                     'height':500,
                      'names':"Average_by",
                      'boxwidth':0.8,
                      'points':False,
@@ -79,17 +79,20 @@ def st_data_section():
        global df
        # Set up section where data is shown
        st.subheader("DataFrames")
-       data=st.expander('Raw DataFrame (Click to Show)')
-       data.subheader("Raw Data")
-       data_text=data.text("Loading data file...")
+       data=st.container()
+       load_data=data.checkbox("Show Data Table")
        df=excel_to_df(upload_data_widget)
-       data.write(df.astype(str))
-       data_text.text("Data file loaded")
+       if load_data:
+              unfiltered_data=data.checkbox("Original Data (Before filtering)")
+              data.write(df.astype(str))
+       # data=st.expander('Raw DataFrame (Click to Show)')
+       
+       
 
 
 def filter_data():
        # Filter data according to widgets
-       global df_filtered, df_melt, y_norm,y_ref_excluded,y_ref_excluded_log
+       global df_filtered, df_melt
        df_filtered=df.copy().query(query[:-2])
        if remove_zero:
               df_filtered[y_variables]=df_filtered[y_variables].replace(0,np.nan)
@@ -137,11 +140,11 @@ def add_logo_and_links_to_sidebar():
        #Adds logo and links to the different sections in the sidebar
        st.sidebar.image("Mybiotics_LOGO - Large.png",width=250,)
        links=st.sidebar.container()
-       # links.subheader('Links')
-       # links.markdown("[File Upload](#file-upload)", unsafe_allow_html=True)
-       # links.markdown("[DataFrames](#dataframes)", unsafe_allow_html=True)
-       # # links.markdown("[Filtered Data](#filtered-data)", unsafe_allow_html=True)
-       # links.markdown("[Figures](#figures)", unsafe_allow_html=True)
+       links.subheader('Links')
+       links.markdown("[File Upload](#file-upload)", unsafe_allow_html=True)
+       links.markdown("[DataFrames](#dataframes)", unsafe_allow_html=True)
+       # links.markdown("[Filtered Data](#filtered-data)", unsafe_allow_html=True)
+       links.markdown("[Figures](#figures)", unsafe_allow_html=True)
        
        
 def get_filters_and_add_widgets_to_sidebar(df):
@@ -287,7 +290,6 @@ def add_custom_name_column():
 def st_plot_section():
        # Set up section where main cfu plot is shown 
        st_figure=st.container()
-       st_figure.markdown("---")
        st_figure.subheader("Figures")
        st_figure.subheader("CFU Plot")
        #Plot
@@ -354,14 +356,18 @@ def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_ax
               fig.update_traces(boxpoints=None)
               
        hover_plot = px.bar(df, x="custom_name", y=[y_val] * len(df["custom_name"]),
-                                          barmode="overlay",hover_data=cols,facet_col=facet,log_y=log,color=color)
+                                          barmode="overlay",hover_data=cols,facet_col=facet,log_y=log,
+                                          color=color,)
        hover_plot.update_traces(width=boxwidth, opacity=0,showlegend=False)
        hover_plot.update_layout(yaxis_range=[0,max_val])
+       
        if show_meta_on_hover:
               fig.add_traces(hover_plot.data)
        if ref_line:
               fig.add_hline(y=ref_val)
-    
+       # scatter_text=px.scatter(df,x='custom_name',y=y,hover_data=None)
+       # scatter_text.update_traces(marker=dict(size=0.1),showlegend=False)
+       # fig.add_traces(scatter_text.data)
        return fig
 
 def choose_reference():
@@ -380,14 +386,13 @@ def choose_reference():
               ref_value=ref_opts.median().median()
        elif choose_ref_type=='Mean':
               ref_value=ref_opts.mean().mean()
-       st_choose_ref_sample.markdown(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n\n Chosen reference value is {ref_value:.2}")
+       st_choose_ref_sample.text(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n Chosen reference value is {ref_value}")
 
  
 def percent_survaviability_plot_section():
        st.markdown('---')
        st_survivability=st.container()
        st_survivability.subheader("% Survivability Plot")
-       st_survivability.markdown("Uses the reference sample chosen in the sidebar.")
        
        # Calculate % out of reference
        y_norm=[val+'%' for val in y_variables]
@@ -402,19 +407,20 @@ def ref_excluded_plot_section():
        
        st.markdown('---')
        st_survivability=st.container()
-       st_survivability.subheader("Delta From Reference")
-       st_survivability.markdown("Referece subtracted from the rest of the values. Uses the reference sample chosen in the sidebar.")
+       st_survivability.subheader("Values minus reference Plot")
+       st_survivability.text("Referece subtracted from the rest of the values. Uses the reference sample chosen in the previous section.")
        
        # Calculate values by subtracting value of ref sample
        y_ref_excluded=[val+'_ref_excluded' for val in y_variables]
        df_filtered[y_ref_excluded]=df_filtered[y_variables]-ref_value
-       
+       y_ref_excluded_log=[val+'_ref_excluded_log' for val in y_variables]
+       df_filtered[y_ref_excluded_log]=np.log10(df_filtered[y_variables]/ref_value)
        #Plotting, force disable log and force disable start at one. 
        if log:
               data=y_ref_excluded_log
        else:
               data=y_ref_excluded
-       fig2=boxplot(df_filtered,data,y_label='Log Delta',ref_val=0,force_disable_log=True,force_disable_axis_start_at_one=True)
+       fig2=boxplot(df_filtered,data,ref_val=0,force_disable_log=True,force_disable_axis_start_at_one=True)
        st_survivability.plotly_chart(fig2,use_container_width=True)
        
        
