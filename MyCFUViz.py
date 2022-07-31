@@ -11,7 +11,7 @@ import warnings
 # %%
 st.set_page_config(layout="wide",page_title="MyCFUViz",page_icon=Image.open("fav.ico"))
 pd.options.display.float_format = '{:,.2f}'.format
-
+loaded=False
 
 hide_streamlit_style = """
               <style>
@@ -36,7 +36,7 @@ ignore_list=['Count_1','Count_2','Count_3','Count_4','Count_5','Average','LOG','
 default_dict={
                      'color':None,
                      'facet':None,
-                     'height':500,
+                     'height':700,
                      'names':"Average_by",
                      'boxwidth':0.8,
                      'points':False,
@@ -74,23 +74,19 @@ def st_file_upload_section():
        upload_column.subheader("File Upload (use intended template)")
        upload_data_widget=upload_column.file_uploader(label='Upload File', type=['xlsx'],accept_multiple_files=True)
 
-
-def st_data_section():
-       global df
-       # Set up section where data is shown
-       st.subheader("DataFrames")
-       data=st.container()
-       load_data=data.checkbox("Show Data Table")
+def load_dataframe():
+       global df,loaded
        df=excel_to_df(upload_data_widget)
-       if load_data:
-              unfiltered_data=data.checkbox("Original Data (Before filtering)")
-              data.write(df.astype(str))
-       # data=st.expander('Raw DataFrame (Click to Show)')
+       loaded=True
+
+
+
        
        
 
 
 def filter_data():
+       # print("filter_data")
        # Filter data according to widgets
        global df_filtered, df_melt
        df_filtered=df.copy().query(query[:-2])
@@ -101,15 +97,23 @@ def filter_data():
        if manually_sort_values and 'TestedAgentDilution' in df.columns:
               df_filtered=df_filtered.sort_values(by=sort_by,ascending=sort_by_ascending)
        df_filtered['custom_name']=df_filtered[names].astype(str).agg('/'.join, axis=1)
+              
        df_melt=pd.melt(df_filtered,id_vars=[x for x in df_filtered.columns if x not in y_variables+ignore_list],value_vars=y_variables)
 
+def st_data_section():
+       # Set up section where data is shown
+       st.subheader("DataFrames")
+       data=st.container()
+       load_data=data.checkbox("Show Data Table")
+       if load_data:
+              unfiltered_data=data.checkbox("Original Data (Before filtering)")
+              if unfiltered_data:
+                     data.write(df.astype(str))
+              else:
+                     data.write(df_filtered.astype(str))
+       # data=st.expander('Raw DataFrame (Click to Show)')
 
-def st_filtered_data_section():
-       
-       # Set up section where filtered data is shown
-       filtered_data=st.expander("Filtered DataFrame (Click to Show)")
-       filtered_data.subheader('Filtered Data')
-       filtered_data.write(df_filtered.astype(str))
+
 
 
 
@@ -139,12 +143,12 @@ def excel_to_df(upload_data_widget):
 def add_logo_and_links_to_sidebar():
        #Adds logo and links to the different sections in the sidebar
        st.sidebar.image("Mybiotics_LOGO - Large.png",width=250,)
-       links=st.sidebar.container()
-       links.subheader('Links')
-       links.markdown("[File Upload](#file-upload)", unsafe_allow_html=True)
-       links.markdown("[DataFrames](#dataframes)", unsafe_allow_html=True)
-       # links.markdown("[Filtered Data](#filtered-data)", unsafe_allow_html=True)
-       links.markdown("[Figures](#figures)", unsafe_allow_html=True)
+       # links=st.sidebar.container()
+       # links.subheader('Links')
+       # links.markdown("[File Upload](#file-upload)", unsafe_allow_html=True)
+       # links.markdown("[DataFrames](#dataframes)", unsafe_allow_html=True)
+       # # links.markdown("[Filtered Data](#filtered-data)", unsafe_allow_html=True)
+       # links.markdown("[Figures](#figures)", unsafe_allow_html=True)
        
        
 def get_filters_and_add_widgets_to_sidebar(df):
@@ -224,7 +228,7 @@ def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
        global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,\
                      updated_default_dict,ref_line,show_meta_on_hover,multi_options,ylim_top,ylim_bottom,\
-                            manually_set_ylim,log_ylim,ylim_values
+                            manually_set_ylim,log_ylim,ylim_values,annotate
 
        
        # updated_default_dict=set_values_from_url(default_dict)
@@ -266,6 +270,8 @@ def add_plot_settings_to_sidebar():
        remove_zero=plot_settings.checkbox(label='Remove Zero Values', value=updated_default_dict['remove_zero'])
        ref_line=plot_settings.checkbox(label='Draw Reference Line', value=updated_default_dict['ref_line'])
        show_meta_on_hover=plot_settings.checkbox("Show Metadata On Hover",value=True)
+       annotate=plot_settings.selectbox(label='Show Annotations On Plot',options=[None,'Mean'])
+       plot_settings.markdown("Annotations currently don't work together with 'facet'.")
        
 def set_values_from_url(defdict):
        for val in defdict.keys():
@@ -290,6 +296,7 @@ def add_custom_name_column():
 def st_plot_section():
        # Set up section where main cfu plot is shown 
        st_figure=st.container()
+       st_figure.markdown("---")
        st_figure.subheader("Figures")
        st_figure.subheader("CFU Plot")
        #Plot
@@ -364,16 +371,19 @@ def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_ax
        if show_meta_on_hover:
               fig.add_traces(hover_plot.data)
        if ref_line:
-              fig.add_hline(y=ref_val)
-       # scatter_text=px.scatter(df,x='custom_name',y=y,hover_data=None)
-       # scatter_text.update_traces(marker=dict(size=0.1),showlegend=False)
-       # fig.add_traces(scatter_text.data)
+              fig.add_hline(y=ref_val)       
+       if annotate:
+              ann=[]
+              for i, val in enumerate(list(df_melt.groupby(["custom_name"], sort=False, as_index=False).agg({'value': "mean"}).round(2)['value'])):
+                     ann.append(
+                            dict(x=i, y=1.05, text=f"{val:.2}", showarrow=False, xref="x", yref="paper"))            
+              fig.layout.annotations=ann
        return fig
 
 def choose_reference():
-       global ref_value
+       global ref_value,y_norm#,y_ref_excluded,y_ref_excluded_log
        st.markdown('---')
-       st_choose_ref_sample=st.container()
+       st_choose_ref_sample=st.sidebar.expander("Choose Reference Sample")
        st_choose_ref_sample.subheader("Choose Reference Sample")
        choose_ref_sample=st_choose_ref_sample.selectbox(label='Reference Sample',options=df_filtered['custom_name'].unique())
        choose_ref_type=st_choose_ref_sample.selectbox(label='Min/Max/Mean/Median',options=['Mean','Median','Min','Max',])
@@ -386,13 +396,23 @@ def choose_reference():
               ref_value=ref_opts.median().median()
        elif choose_ref_type=='Mean':
               ref_value=ref_opts.mean().mean()
-       st_choose_ref_sample.text(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n Chosen reference value is {ref_value}")
+       st_choose_ref_sample.markdown(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n\n Chosen reference value is {ref_value:.2}")
+       
+       
+       # y_norm=[val+'%' for val in y_variables]
+       # df_filtered[y_norm]=df_filtered[y_variables]*100/ref_value
+       
+       # y_ref_excluded=[val+'_ref_excluded' for val in y_variables]
+       # df_filtered[y_ref_excluded]=df_filtered[y_variables]-ref_value
+       # y_ref_excluded_log=[val+'_ref_excluded_log' for val in y_variables]
+       # df_filtered[y_ref_excluded_log]=np.log10(df_filtered[y_variables]/ref_value)
 
  
 def percent_survaviability_plot_section():
        st.markdown('---')
        st_survivability=st.container()
        st_survivability.subheader("% Survivability Plot")
+       st_survivability.markdown("Uses the reference sample chosen in the sidebar.")
        
        # Calculate % out of reference
        y_norm=[val+'%' for val in y_variables]
@@ -407,8 +427,8 @@ def ref_excluded_plot_section():
        
        st.markdown('---')
        st_survivability=st.container()
-       st_survivability.subheader("Values minus reference Plot")
-       st_survivability.text("Referece subtracted from the rest of the values. Uses the reference sample chosen in the previous section.")
+       st_survivability.subheader("Delta From Reference")
+       st_survivability.markdown("Referece subtracted from the rest of the values. Uses the reference sample chosen in the sidebar.")
        
        # Calculate values by subtracting value of ref sample
        y_ref_excluded=[val+'_ref_excluded' for val in y_variables]
@@ -420,7 +440,7 @@ def ref_excluded_plot_section():
               data=y_ref_excluded_log
        else:
               data=y_ref_excluded
-       fig2=boxplot(df_filtered,data,ref_val=0,force_disable_log=True,force_disable_axis_start_at_one=True)
+       fig2=boxplot(df_filtered,data,y_label='Log Delta',ref_val=0,force_disable_log=True,force_disable_axis_start_at_one=True)
        st_survivability.plotly_chart(fig2,use_container_width=True)
        
        
@@ -447,21 +467,21 @@ def main():
        st_header_section()
        st_template_download()
        st_file_upload_section()
+       
        if upload_data_widget:
-              st_data_section()
-              
+              load_dataframe()
+       if loaded:
               add_logo_and_links_to_sidebar()
               get_filters_and_add_widgets_to_sidebar(df)
               add_df_sort_settings_to_sidebar()
               add_plot_settings_to_sidebar()
+              
               # set_values_from_url()
               # update_parameters_in_link()
               filter_data()
-              st_filtered_data_section()
-              # add_custom_name_column()
-              st_plot_section()
-              # st_plot2_section()
               choose_reference()
+              st_data_section()
+              st_plot_section()
               percent_survaviability_plot_section()
               ref_excluded_plot_section()
               
