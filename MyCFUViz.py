@@ -89,7 +89,7 @@ def st_data_section():
 
 def filter_data():
        # Filter data according to widgets
-       global df_filtered, df_melt
+       global df_filtered, df_melt, y_norm,y_ref_excluded,y_ref_excluded_log
        df_filtered=df.copy().query(query[:-2])
        if remove_zero:
               df_filtered[y_variables]=df_filtered[y_variables].replace(0,np.nan)
