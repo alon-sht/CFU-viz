@@ -36,7 +36,7 @@ ignore_list=['Count_1','Count_2','Count_3','Count_4','Count_5','Average','LOG','
 default_dict={
                      'color':None,
                      'facet':None,
-                     'height':500,
+                     'height':700,
                      'names':"Average_by",
                      'boxwidth':0.8,
                      'points':False,
@@ -65,7 +65,7 @@ def st_template_download():
        download_column.subheader("Template to use for the app")
        with open('Template_CFU.xlsx','rb') as f:
               download_column.download_button('Click Me to Download Template XLSX File',f,file_name='Template.xlsx')
-       download_column.text('Feel free to change the names of Sample Data columns or add new columns. Other columns should not be changed')
+       download_column.markdown('Feel free to change the names of Sample Data columns or add new columns. Other columns should not be changed')
 
 def st_file_upload_section():
        # Set up file upload section of app
@@ -137,11 +137,11 @@ def add_logo_and_links_to_sidebar():
        #Adds logo and links to the different sections in the sidebar
        st.sidebar.image("Mybiotics_LOGO - Large.png",width=250,)
        links=st.sidebar.container()
-       links.subheader('Links')
-       links.markdown("[File Upload](#file-upload)", unsafe_allow_html=True)
-       links.markdown("[DataFrames](#dataframes)", unsafe_allow_html=True)
-       # links.markdown("[Filtered Data](#filtered-data)", unsafe_allow_html=True)
-       links.markdown("[Figures](#figures)", unsafe_allow_html=True)
+       # links.subheader('Links')
+       # links.markdown("[File Upload](#file-upload)", unsafe_allow_html=True)
+       # links.markdown("[DataFrames](#dataframes)", unsafe_allow_html=True)
+       # # links.markdown("[Filtered Data](#filtered-data)", unsafe_allow_html=True)
+       # links.markdown("[Figures](#figures)", unsafe_allow_html=True)
        
        
 def get_filters_and_add_widgets_to_sidebar(df):
@@ -251,7 +251,7 @@ def add_plot_settings_to_sidebar():
        plot_settings.markdown("---")
        manually_set_ylim=plot_settings.checkbox("Manually Set Y-Lim", value=False)
        
-       ylim_bottom,ylim_top=plot_settings.slider(label='Manually set ylim',min_value=-20.0,max_value=20.0,value=[-1.0,8.0],step=0.5)
+       ylim_bottom,ylim_top=plot_settings.slider(label='Manually set ylim (minimum and maximum)',min_value=-20.0,max_value=20.0,value=[-1.0,8.0],step=0.2,)#format="10^%f")
        plot_settings.markdown("*If the chosen value is x, positive are 10^x, while negative x values are -10^x")
        # ylim_bottom=plot_settings.slider(label='Manually set ylim (min)',min_value=-20,max_value=20,value=0)
        ylim_values=plot_settings.markdown(f"")
@@ -287,6 +287,7 @@ def add_custom_name_column():
 def st_plot_section():
        # Set up section where main cfu plot is shown 
        st_figure=st.container()
+       st_figure.markdown("---")
        st_figure.subheader("Figures")
        st_figure.subheader("CFU Plot")
        #Plot
@@ -379,13 +380,14 @@ def choose_reference():
               ref_value=ref_opts.median().median()
        elif choose_ref_type=='Mean':
               ref_value=ref_opts.mean().mean()
-       st_choose_ref_sample.text(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n Chosen reference value is {ref_value}")
+       st_choose_ref_sample.markdown(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n\n Chosen reference value is {ref_value:.2}")
 
  
 def percent_survaviability_plot_section():
        st.markdown('---')
        st_survivability=st.container()
        st_survivability.subheader("% Survivability Plot")
+       st_survivability.markdown("Uses the reference sample chosen in the sidebar.")
        
        # Calculate % out of reference
        y_norm=[val+'%' for val in y_variables]
@@ -400,15 +402,19 @@ def ref_excluded_plot_section():
        
        st.markdown('---')
        st_survivability=st.container()
-       st_survivability.subheader("Values minus reference Plot")
-       st_survivability.text("Referece subtracted from the rest of the values. Uses the reference sample chosen in the previous section.")
+       st_survivability.subheader("Delta From Reference")
+       st_survivability.markdown("Referece subtracted from the rest of the values. Uses the reference sample chosen in the sidebar.")
        
        # Calculate values by subtracting value of ref sample
        y_ref_excluded=[val+'_ref_excluded' for val in y_variables]
        df_filtered[y_ref_excluded]=df_filtered[y_variables]-ref_value
        
        #Plotting, force disable log and force disable start at one. 
-       fig2=boxplot(df_filtered,y_ref_excluded,ref_val=0,force_disable_log=True,force_disable_axis_start_at_one=True)
+       if log:
+              data=y_ref_excluded_log
+       else:
+              data=y_ref_excluded
+       fig2=boxplot(df_filtered,data,y_label='Log Delta',ref_val=0,force_disable_log=True,force_disable_axis_start_at_one=True)
        st_survivability.plotly_chart(fig2,use_container_width=True)
        
        
