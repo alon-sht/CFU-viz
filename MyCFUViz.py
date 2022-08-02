@@ -8,6 +8,7 @@ from PIL import Image
 import warnings
 
 
+
 # %%
 st.set_page_config(layout="wide",page_title="MyCFUViz",page_icon=Image.open("fav.ico"))
 pd.options.display.float_format = '{:,.2f}'.format
@@ -57,6 +58,7 @@ def st_header_section():
        head[0]=head[2]=st.write("")
        head[1].image("Mybiotics_LOGO - Large.png",width=350)
        st.title("MyCFUViz")
+       
 
 
 def st_template_download():
