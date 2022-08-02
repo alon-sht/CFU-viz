@@ -7,5 +7,9 @@ font="sans serif"
 
 
 [server]
-enableCORS = false
+port = 5401
+enableCORS=false
 enableXsrfProtection=false
+
+[browser]
+gatherUsageStats = false
