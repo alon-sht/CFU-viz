@@ -83,10 +83,13 @@ def load_dataframe():
        st.session_state.df=df
        loaded=True
 
-
-
-       
-       
+def return_df(which):
+       if which=='df_melt':
+              return df_melt
+       if which=='df':
+              return df
+       elif which=='df_filtered':
+              return df_filtered
 
 
 def filter_data():
@@ -104,6 +107,9 @@ def filter_data():
        df_filtered['custom_name']=df_filtered[names].astype(str).agg('/'.join, axis=1)
               
        df_melt=pd.melt(df_filtered,id_vars=[x for x in df_filtered.columns if x not in y_variables+ignore_list],value_vars=y_variables)
+       update_df_melt_according_to_ref()
+   
+def update_df_melt_according_to_ref():
        df_melt['value_norm']=df_melt['value']*100/ref_value
        df_melt['value_delta_ref']=df_melt['value']-ref_value
        df_melt['value_delta_ref_log']=np.log10(df_melt['value']/ref_value)
@@ -394,7 +400,7 @@ def choose_reference():
        elif choose_ref_type=='Mean':
               ref_value=ref_opts.mean().mean()
        st_choose_ref_sample.markdown(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n\n Chosen reference value is {ref_value:.4}")
-       
+       update_df_melt_according_to_ref()
        
 
 
@@ -504,8 +510,8 @@ def set_values_from_url(url_params):
 def main():
        # Main part of the app
        # st.sidebar.button("Get Parameters from URL",on_click=set_values_from_url)
-       url_params=st.experimental_get_query_params()
-       set_values_from_url(url_params)
+       # url_params=st.experimental_get_query_params()
+       # set_values_from_url(url_params)
        st_header_section()
        st_template_download()
        st_file_upload_section()
@@ -523,6 +529,7 @@ def main():
               # update_parameters_in_link()
               filter_data()
               choose_reference()
+              
               st_data_section()
               st_plot_section()
               percent_survaviability_plot_section()
