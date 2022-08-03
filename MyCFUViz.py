@@ -439,7 +439,7 @@ def update_parameters_in_link():
                      annotate=st.session_state.annotate,
                      # ref_sample=st.session_state.ref_sample,
                      ref_sample_type=st.session_state.ref_sample_type,
-                     
+              
                      height=st.session_state.height, 
                      font_size=st.session_state.font_size, 
                      
@@ -479,27 +479,27 @@ def set_values_from_url(url_params):
                             val=url_params[widget][0]
                      st.session_state[widget]=val
        
-       # int_slider_widgets=['height','font_size']
-       # for widget in int_slider_widgets:
-       #        if widget in url_params.keys():
-       #               st.session_state[widget]=int(url_params[widget][0])
+       int_slider_widgets=['height','font_size']
+       for widget in int_slider_widgets:
+              if widget in url_params.keys():
+                     st.session_state[widget]=int(url_params[widget][0])
                      
-       # float_slider_widgets=['boxwidth','ylim']
-       # for widget in float_slider_widgets:
-       #        if widget in url_params.keys():
-       #               if widget=='ylim':
-       #                      st.session_state[widget]=[float(url_params[widget][0]),float(url_params[widget][1])]
-       #               else:
-       #                      st.session_state[widget]=float(url_params[widget][0])
+       float_slider_widgets=['boxwidth','ylim']
+       for widget in float_slider_widgets:
+              if widget in url_params.keys():
+                     if widget=='ylim':
+                            st.session_state[widget]=[float(url_params[widget][0]),float(url_params[widget][1])]
+                     else:
+                            st.session_state[widget]=float(url_params[widget][0])
                             
-       # bool_widgets=['points','xlabels','log','start_at_one','remove_zero','ref_line','show_meta_on_hover','manually_set_ylim']       
-       # for widget in bool_widgets:
-       #        if widget in url_params.keys():
-       #               if str(url_params[widget][0])==False:
-       #                      val=False
-       #               else:
-       #                      val=True
-       #               st.session_state[widget]=val
+       bool_widgets=['points','xlabels','log','start_at_one','remove_zero','ref_line','show_meta_on_hover','manually_set_ylim']       
+       for widget in bool_widgets:
+              if widget in url_params.keys():
+                     if str(url_params[widget][0])==False:
+                            val=False
+                     else:
+                            val=True
+                     st.session_state[widget]=val
               
 def main():
        # Main part of the app
