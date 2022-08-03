@@ -493,7 +493,7 @@ def set_values_from_url(url_params):
        #                      st.session_state[widget]=float(url_params[widget][0])
                             
        # bool_widgets=['points','xlabels','log','start_at_one','remove_zero','ref_line','show_meta_on_hover','manually_set_ylim']       
-       # for widget in int_slider_widgets:
+       # for widget in bool_widgets:
        #        if widget in url_params.keys():
        #               if str(url_params[widget][0])==False:
        #                      val=False
@@ -504,8 +504,8 @@ def set_values_from_url(url_params):
 def main():
        # Main part of the app
        # st.sidebar.button("Get Parameters from URL",on_click=set_values_from_url)
-       url_params=st.experimental_get_query_params()
-       set_values_from_url(url_params)
+       # url_params=st.experimental_get_query_params()
+       # set_values_from_url(url_params)
        st_header_section()
        st_template_download()
        st_file_upload_section()
@@ -528,8 +528,8 @@ def main():
               percent_survaviability_plot_section()
               ref_excluded_plot_section()
               # st.sidebar.write(st.session_state)
-              st.sidebar.button("Set Parameters in URL",on_click=update_parameters_in_link)
-              st.sidebar.markdown("After setting parameters in the URL you can copy it and save it. Next time you can use the fill link and most parameters will be saved (not including filters).")
+              # st.sidebar.button("Set Parameters in URL",on_click=update_parameters_in_link)
+              # st.sidebar.markdown("After setting parameters in the URL you can copy it and save it. Next time you can use the fill link and most parameters will be saved (not including filters).")
               # update_parameters_in_link()
               # st.write(df_melt.astype(str))
 if __name__=='__main__':
