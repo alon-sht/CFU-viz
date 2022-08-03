@@ -504,8 +504,8 @@ def set_values_from_url(url_params):
 def main():
        # Main part of the app
        # st.sidebar.button("Get Parameters from URL",on_click=set_values_from_url)
-       # url_params=st.experimental_get_query_params()
-       # set_values_from_url(url_params)
+       url_params=st.experimental_get_query_params()
+       set_values_from_url(url_params)
        st_header_section()
        st_template_download()
        st_file_upload_section()
