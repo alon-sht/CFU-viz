@@ -437,7 +437,7 @@ def update_parameters_in_link():
                      color=st.session_state.color, 
                      facet=st.session_state.facet, 
                      annotate=st.session_state.annotate,
-                     ref_sample=st.session_state.ref_sample,
+                     # ref_sample=st.session_state.ref_sample,
                      ref_sample_type=st.session_state.ref_sample_type,
                      
                      height=st.session_state.height, 
@@ -528,6 +528,8 @@ def main():
               percent_survaviability_plot_section()
               ref_excluded_plot_section()
               # st.sidebar.write(st.session_state)
+              st.sidebar.button("Set Parameters in URL",on_click=update_parameters_in_link)
+              st.sidebar.markdown("After setting parameters in the URL you can copy it and save it. Next time you can use the fill link and most parameters will be saved (not including filters).")
               # update_parameters_in_link()
               # st.write(df_melt.astype(str))
 if __name__=='__main__':
