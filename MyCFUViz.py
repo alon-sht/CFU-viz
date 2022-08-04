@@ -51,7 +51,7 @@ default_dict={
                      'manually_sort_values':False
                      }
        
-       
+cols_for_reference=['TestedPhase','TimePoint','TestedAgent']
 
 def st_header_section():
        # Set up header section of app
@@ -98,9 +98,16 @@ def filter_data():
        global df_filtered, df_melt
        df_filtered=df.copy().query(query[:-2])
        st.session_state.df_filtered=df_filtered
-       if remove_zero:
+       df_filtered['only_zero']=np.where(df_filtered[y_variables].mean(axis=1)==0,'y','n')
+       # st.write(.astype(str))
+       if remove_zero=='Remove Zero Values Only When Not All Counts Are Zero':
+              # df_filtered[y_variables].where(df_filtered['only_zero']=='n').replace(0,np.nan)
+              for col in y_variables:
+                     df_filtered.loc[(df_filtered['only_zero']=='n') & (df_filtered[col]==0),col]=np.nan
+              df_filtered[y_variables]=df_filtered[y_variables].replace(0,1.00001)       
+       elif remove_zero=='Remove All Zero Values':
               df_filtered[y_variables]=df_filtered[y_variables].replace(0,np.nan)
-       else:
+       elif remove_zero=="Don't Remove Zero Values":
               df_filtered[y_variables]=df_filtered[y_variables].replace(0,1.00001)
        if manually_sort_values and 'TestedAgentDilution' in df.columns:
               df_filtered=df_filtered.sort_values(by=sort_by,ascending=sort_by_ascending)
@@ -108,6 +115,9 @@ def filter_data():
               
        df_melt=pd.melt(df_filtered,id_vars=[x for x in df_filtered.columns if x not in y_variables+ignore_list],value_vars=y_variables)
        update_df_melt_according_to_ref()
+       
+       st.write(df_filtered.astype(str))
+              
    
 def update_df_melt_according_to_ref():
        df_melt['value_norm']=df_melt['value']*100/ref_value
@@ -245,7 +255,7 @@ def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
        global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,\
                      updated_default_dict,ref_line,show_meta_on_hover,multi_options,ylim_top,ylim_bottom,\
-                            manually_set_ylim,log_ylim,ylim_values,annotate
+                            manually_set_ylim,log_ylim,ylim_values,annotate,agg_opts,show_axis_on_each,hide_ylabel
 
        
        # updated_default_dict=set_values_from_url(default_dict)
@@ -275,7 +285,11 @@ def add_plot_settings_to_sidebar():
        plot_settings.markdown("---")
        manually_set_ylim=plot_settings.checkbox("Manually Set Y-Lim", value=False,key='manually_set_ylim')
        
-       ylim_bottom,ylim_top=plot_settings.slider(label='Manually set ylim (minimum and maximum)',min_value=-20.0,max_value=20.0,value=[-1.0,8.0],step=0.2,key='ylim')#format="10^%f")
+       # ylim_bottom,ylim_top=plot_settings.slider(label='Manually set ylim (minimum and maximum)',min_value=-10.0,max_value=10.0,value=[-1.0,8.0],step=0.2,key='ylim')#format="10^%f")
+       ylim_c1,ylim_c2=plot_settings.columns(2)
+       ylim_bottom=ylim_c1.number_input(label='Y-Limit Bottom',min_value=-10.0,max_value=10.0,value=-2.0,step=0.2,key='ylim_min')
+       ylim_top=ylim_c2.number_input(label='Y-Limit Bottom',min_value=-10.0,max_value=10.0,value=5.0,step=0.2,key='ylim_max')
+       
        plot_settings.markdown("*If the chosen value is x, positive are 10^x, while negative x values are -10^x")
        # ylim_bottom=plot_settings.slider(label='Manually set ylim (min)',min_value=-20,max_value=20,value=0)
        ylim_values=plot_settings.markdown(f"")
@@ -284,9 +298,12 @@ def add_plot_settings_to_sidebar():
        xlabels=plot_settings.checkbox(label='Show X axis labels',key='xlabels', value=updated_default_dict['xlabels'])
        log=plot_settings.checkbox(label='Log Y Axis',key='logy', value=updated_default_dict['log'])
        start_at_one=plot_settings.checkbox(label='Start Axis at 1',key='start_at_one', value=updated_default_dict['start_at_one'],)#disabled=True)
-       remove_zero=plot_settings.checkbox(label='Remove Zero Values',key='remove_zero', value=updated_default_dict['remove_zero'])
+       # remove_zero=plot_settings.checkbox(label='Remove Zero Values',key='remove_zero', value=updated_default_dict['remove_zero'])
+       remove_zero=plot_settings.selectbox(label='Remove Zero Values',options=["Don't Remove Zero Values",'Remove Zero Values Only When Not All Counts Are Zero','Remove All Zero Values'],key='remove_zero')
        ref_line=plot_settings.checkbox(label='Draw Reference Line',key='ref_line', value=updated_default_dict['ref_line'])
        show_meta_on_hover=plot_settings.checkbox("Show Metadata On Hover",key='show_meta_on_hover',value=True)
+       show_axis_on_each=plot_settings.checkbox(label="Show Axis on Each Subplot",value=True)
+       hide_ylabel=plot_settings.checkbox(label="Hide Y-Label",value=False)
        annotate=plot_settings.selectbox(label='Show Annotations On Plot',key='annotate',options=[None,'Mean'])
        plot_settings.markdown("Annotations currently don't work together with 'facet'.")
        
@@ -347,23 +364,30 @@ def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_ax
               logy=False 
        else: 
               logy=log
-       fig=px.box(df,x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet,)
+       fig=px.box(df,x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet,facet_col_spacing=0.03)
        min_val,max_val,y_val,how_to_set_ylim=get_ylim(df,y,force_disable_axis_start_at_one,force_disable_log)
        if how_to_set_ylim=='automatically':
               ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set")
        else:
-              ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set to {min_val: .1E} and {max_val: .1E}")
+              ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set to {min_val:.3} and {max_val:.3}")
        
        
        fig.update_layout(yaxis_range=[min_val,max_val],font=dict(size=font_size,),hovermode="x")
        fig.update_traces(width=boxwidth, boxmean=True)
        fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True,showticklabels=xlabels)
-       fig.update_yaxes(exponentformat='E',title=y_label)
+       if y_label and not hide_ylabel:
+              label=y_label
+       else:
+              label=None
+       fig.update_yaxes(exponentformat='E',title=label,)
+       if show_axis_on_each:
+              fig.update_yaxes(showticklabels=show_axis_on_each)
+       
 
        if points:
               fig.update_traces(boxpoints='all',jitter=0.05)
        else:
-              fig.update_traces(boxpoints=None)
+              fig.update_traces(boxpoints=False)
               
        hover_plot = px.bar(df, x="custom_name", y=[y_val] * len(df["custom_name"]),
                                           barmode="overlay",hover_data=cols,facet_col=facet,log_y=log,
@@ -390,17 +414,20 @@ def choose_reference():
        st_choose_ref_sample.subheader("Choose Reference Sample")
        choose_ref_sample=st_choose_ref_sample.selectbox(label='Reference Sample',options=df_filtered['custom_name'].unique(),key='ref_sample')
        choose_ref_type=st_choose_ref_sample.selectbox(label='Min/Max/Mean/Median',options=['Mean','Median','Min','Max',],key='ref_sample_type')
-       ref_opts=df_filtered[df_filtered['custom_name'].isin([choose_ref_sample])][y_variables]
+       # ref_opts=df_filtered[df_filtered['custom_name'].isin([choose_ref_sample])][y_variables]
+       ref_opts=df_melt[df_melt['custom_name']==choose_ref_sample]['value']
        if choose_ref_type=='Min':
-              ref_value=ref_opts.min().min()
+              ref_value=ref_opts.min()
        elif choose_ref_type=='Max':
-              ref_value=ref_opts.max().max()
+              ref_value=ref_opts.max()
        elif choose_ref_type=='Median':
-              ref_value=ref_opts.median().median()
+              ref_value=ref_opts.median()
        elif choose_ref_type=='Mean':
-              ref_value=ref_opts.mean().mean()
+              ref_value=ref_opts.mean()
        st_choose_ref_sample.markdown(f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n\n Chosen reference value is {ref_value:.4}")
        update_df_melt_according_to_ref()
+       
+       
        
 
 
@@ -437,6 +464,50 @@ def ref_excluded_plot_section():
        st_delta_plot.plotly_chart(fig2,use_container_width=True)
        
        
+       
+def auto_ref_excluded_plot_section():       
+       
+       st.markdown('---')
+       st_auto_delta_plot=st.container()
+       st_auto_delta_plot.subheader("Delta From Reference (auto-set)")
+       # st_auto_delta_plot.markdown("Referece subtracted from the rest of the values. Uses the reference sample chosen in the sidebar.")
+       st_auto_delta_plot.markdown("Consult Alon before using this plot.")
+
+       
+       #Plotting, force disable log and force disable start at one. 
+       if log:
+              data='value_delta_auto_ref_log'
+       else:
+              data='value_delta_auto_ref'
+       fig3=boxplot(df_melt,data,y_label='Log Delta',ref_val=0,force_disable_log=True,force_disable_axis_start_at_one=True)
+       delta_auto_set=st_auto_delta_plot.checkbox("I consulted Alon and I want to see this plot")
+       if delta_auto_set:
+              st_auto_delta_plot.plotly_chart(fig3,use_container_width=True)
+       
+def auto_assign_ref_sample():
+       
+       default_columns_for_ref=[x for x in agg_opts if x not in ['TimePoint','TestedAgent','TestedAgentDilution']]
+       auto_ref=st.sidebar.expander('Auto Assign Reference Sample (Consult Alon)')
+       auto_ref.markdown("'Columns to take for reference' should be the same columns as taken for the plot names, excluding TestedAgent and TestedAgentDilution. As well as excluding the column by which the reference is determined.")
+       ref_columns=auto_ref.multiselect("Columns to take for reference",options=cols,default=default_columns_for_ref)
+       df_melt['ref_name']=df_melt[ref_columns].astype(str).agg('/'.join,axis=1)
+       if "TimePoint" in df_melt.columns:
+              tp=list(df_melt.columns).index("TimePoint")
+       else:
+              tp=0
+       col_for_ref=auto_ref.selectbox("Choose column to search reference by",options=list(df_melt.columns),index=tp)
+       if "t0" in df_melt[col_for_ref].unique().tolist():
+              val_t0=list(df_melt[col_for_ref].unique().tolist()).index("t0")
+       else:
+              val_t0=0
+       val_for_ref=auto_ref.selectbox("Choose column to search reference by",options=df_melt[col_for_ref].unique().tolist(),index=val_t0)
+       
+       ref_for_each_sample_type=df_melt[df_melt[col_for_ref]==val_for_ref].groupby(by=['ref_name']).agg({'value':'mean'})
+       auto_ref.markdown("Chosen References:")
+       auto_ref.write(ref_for_each_sample_type.astype(str))
+       df_melt['auto_ref_sample']=df_melt['ref_name'].map(ref_for_each_sample_type.to_dict()['value'])
+       df_melt['value_delta_auto_ref']=df_melt['value']-df_melt['auto_ref_sample']
+       df_melt['value_delta_auto_ref_log']=np.log10(df_melt['value']/df_melt['auto_ref_sample'],where=(df_melt['value']/df_melt['auto_ref_sample']!=0))
        
 def update_parameters_in_link():
               st.experimental_set_query_params(
@@ -476,7 +547,7 @@ def set_values_from_url(url_params):
        # for val in st.experimental_get_query_params().keys():
        #        if val in st.session_state.keys():
        #               st.session_state[val]=st.experimental_get_query_params()[val]
-       selectbox_widgets=['color','facet','annotate','ref_sample','ref_sample_type']
+       selectbox_widgets=['color','facet','annotate','ref_sample','ref_sample_type','remove_zero']
        for widget in selectbox_widgets:
               if widget in url_params.keys():
                      if url_params[widget][0]=="None":
@@ -498,7 +569,7 @@ def set_values_from_url(url_params):
                      else:
                             st.session_state[widget]=float(url_params[widget][0])
                             
-       bool_widgets=['points','xlabels','log','start_at_one','remove_zero','ref_line','show_meta_on_hover','manually_set_ylim']       
+       bool_widgets=['points','xlabels','log','start_at_one','ref_line','show_meta_on_hover','manually_set_ylim']       
        for widget in bool_widgets:
               if widget in url_params.keys():
                      if str(url_params[widget][0])==False:
@@ -529,16 +600,23 @@ def main():
               # update_parameters_in_link()
               filter_data()
               choose_reference()
-              
+              auto_assign_ref_sample()              
               st_data_section()
               st_plot_section()
               percent_survaviability_plot_section()
               ref_excluded_plot_section()
+              try:
+                     auto_ref_excluded_plot_section()
+              except Exception as e:
+                     st.subheader("Could not do auto-assign reference :(")
+                     st.markdown(e)
               # st.sidebar.write(st.session_state)
               # st.sidebar.button("Set Parameters in URL",on_click=update_parameters_in_link)
               # st.sidebar.markdown("After setting parameters in the URL you can copy it and save it. Next time you can use the fill link and most parameters will be saved (not including filters).")
               # update_parameters_in_link()
-              # st.write(df_melt.astype(str))
+              
+              
+              
 if __name__=='__main__':
        main()
 
