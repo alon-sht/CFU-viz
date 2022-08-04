@@ -255,7 +255,8 @@ def add_plot_settings_to_sidebar():
        # Adds plot settings widget to sidebar
        global color, facet, height, names,boxwidth,points,log,remove_zero,start_at_one,font_size,xlabels,\
                      updated_default_dict,ref_line,show_meta_on_hover,multi_options,ylim_top,ylim_bottom,\
-                            manually_set_ylim,log_ylim,ylim_values,annotate,agg_opts,show_axis_on_each,hide_ylabel
+                            manually_set_ylim,log_ylim,ylim_values,annotate,agg_opts,show_axis_on_each,hide_ylabel,\
+                                   show_line
 
        
        # updated_default_dict=set_values_from_url(default_dict)
@@ -304,7 +305,9 @@ def add_plot_settings_to_sidebar():
        show_meta_on_hover=plot_settings.checkbox("Show Metadata On Hover",key='show_meta_on_hover',value=True)
        show_axis_on_each=plot_settings.checkbox(label="Show Axis on Each Subplot",value=True)
        hide_ylabel=plot_settings.checkbox(label="Hide Y-Label",value=False)
+       show_line=plot_settings.checkbox(label="Connect a Line Between Concentration", value=False)
        annotate=plot_settings.selectbox(label='Show Annotations On Plot',key='annotate',options=[None,'Mean'])
+       
        plot_settings.markdown("Annotations currently don't work together with 'facet'.")
        
 
@@ -405,6 +408,63 @@ def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_ax
                      ann.append(
                             dict(x=i, y=1.05, text=f"{val:.2}", showarrow=False, xref="x", yref="paper"))            
               fig.layout.annotations=ann
+              
+       if show_line:
+              line_fig=px.line(df.groupby(["custom_name",facet,color], sort=False, as_index=False).agg({y: "mean"}),x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet,facet_col_spacing=0.03,)
+              line_fig.update_layout(showlegend=False)
+              fig.add_traces(line_fig.data)
+       return fig
+
+
+def barplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_axis_start_at_one=False):
+    
+       if color:
+              df[color]=df[color].astype(str)
+       if force_disable_log: 
+              logy=False 
+       else: 
+              logy=log
+       fig=px.bar(df.groupby(["custom_name",facet,color], sort=False, as_index=False).agg({y: "mean"}),x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet,facet_col_spacing=0.03,barmode='overlay')
+       min_val,max_val,y_val,how_to_set_ylim=get_ylim(df,y,force_disable_axis_start_at_one,force_disable_log)
+       if how_to_set_ylim=='automatically':
+              ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set")
+       else:
+              ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set to {min_val:.3} and {max_val:.3}")
+       
+       
+       fig.update_layout(yaxis_range=[min_val,max_val],font=dict(size=font_size,),hovermode="x")
+       # fig.update_traces(width=boxwidth,)
+       fig.update_xaxes(tickangle=90,matches=None,title=None,dtick=1,autorange=True,showticklabels=xlabels)
+       if y_label and not hide_ylabel:
+              label=y_label
+       else:
+              label=None
+       fig.update_yaxes(exponentformat='E',title=label,)
+       if show_axis_on_each:
+              fig.update_yaxes(showticklabels=show_axis_on_each)
+       
+
+       # if points:
+       #        fig.update_traces(boxpoints='all',jitter=0.05)
+       # else:
+       #        fig.update_traces(boxpoints=False)
+              
+       hover_plot = px.bar(df, x="custom_name", y=[y_val] * len(df["custom_name"]),
+                                          barmode="overlay",hover_data=cols,facet_col=facet,log_y=log,
+                                          color=color,)
+       hover_plot.update_traces(width=boxwidth, opacity=0,showlegend=False)
+       hover_plot.update_layout(yaxis_range=[0,max_val])
+       
+       if show_meta_on_hover:
+              fig.add_traces(hover_plot.data)
+       if ref_line:
+              fig.add_hline(y=ref_val)       
+       if annotate:
+              ann=[]
+              for i, val in enumerate(list(df_melt.groupby(["custom_name"], sort=False, as_index=False).agg({'value': "mean"}).round(2)['value'])):
+                     ann.append(
+                            dict(x=i, y=1.05, text=f"{val:.2}", showarrow=False, xref="x", yref="paper"))            
+              fig.layout.annotations=ann
        return fig
 
 def choose_reference():
@@ -480,9 +540,12 @@ def auto_ref_excluded_plot_section():
        else:
               data='value_delta_auto_ref'
        fig3=boxplot(df_melt,data,y_label='Log Delta',ref_val=0,force_disable_log=True,force_disable_axis_start_at_one=True)
+       fig4=barplot(df_melt,data,y_label='Log Delta',ref_val=0,force_disable_log=True,force_disable_axis_start_at_one=True)
        delta_auto_set=st_auto_delta_plot.checkbox("I consulted Alon and I want to see this plot")
        if delta_auto_set:
               st_auto_delta_plot.plotly_chart(fig3,use_container_width=True)
+              st_auto_delta_plot.subheader("Bar Chart Using Only Mean Value")
+              st_auto_delta_plot.plotly_chart(fig4,use_container_width=True)
        
 def auto_assign_ref_sample():
        
