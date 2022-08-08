@@ -110,13 +110,14 @@ def filter_data():
        elif remove_zero=="Don't Remove Zero Values":
               df_filtered[y_variables]=df_filtered[y_variables].replace(0,1.00001)
        if manually_sort_values and 'TestedAgentDilution' in df.columns:
+              # df_filtered['TestedAgentDilution']=df_filtered['TestedAgentDilution'].str.extract('(\d+)', expand=False).astype('float').astype('Int64')
               df_filtered=df_filtered.sort_values(by=sort_by,ascending=sort_by_ascending)
        df_filtered['custom_name']=df_filtered[names].astype(str).agg('/'.join, axis=1)
               
        df_melt=pd.melt(df_filtered,id_vars=[x for x in df_filtered.columns if x not in y_variables+ignore_list],value_vars=y_variables)
        update_df_melt_according_to_ref()
        
-       st.write(df_filtered.astype(str))
+       # st.write(df_filtered.astype(str))
               
    
 def update_df_melt_according_to_ref():
@@ -130,10 +131,10 @@ def st_data_section():
        # Set up section where data is shown
        st.subheader("DataFrames")
        data=st.container()
-       load_data=data.checkbox("Show Data Table",key='load_data')
+       load_data=data.checkbox("Show Data Table",key='load_data',help='Click to show the data table')
        
        if load_data:
-              unfiltered_data=data.checkbox("Original Data (Before filtering)",key='original_data')
+              unfiltered_data=data.checkbox("Data before applying filters",key='original_data')
               if unfiltered_data:
                      data.write(df.astype(str))
               else:
@@ -185,8 +186,10 @@ def get_filters_and_add_widgets_to_sidebar(df):
        widget_dict={}
        query=f""
        st.sidebar.header('Widgets',)
-       filter_widgets=st.sidebar.expander("Data Filters. After choosing filters press the button at the bottom.")
+       filter_widgets=st.sidebar.expander("Data Filters.")
        filter_widgets.subheader('Filter Data')
+       filter_widgets.markdown("After selecting filters press the 'Apply Filters' button at the bottom.")
+       filter_widgets.markdown("Only shows columns that contain more than 1 unique value.")
        form=filter_widgets.form('form1')
        
        if "Dilution" in df.columns:
@@ -198,10 +201,11 @@ def get_filters_and_add_widgets_to_sidebar(df):
        
        
        for y in df.columns[1:df.columns.get_loc(sample_data_col)]:
+              
               if len(df[y].unique().tolist())>1:
                      widget_dict[y]=form.multiselect(label=str(y),options=df[y].unique().tolist(),default=df[y].unique().tolist(),key=str(y))
                      query+=f"`{y}`  in {widget_dict[y]} & "
-       form.form_submit_button("Fiter Data")
+       form.form_submit_button("Apply Filters")
        
 def add_df_sort_settings_to_sidebar():
        global sort_by,manually_sort_values,sort_by_ascending
@@ -266,13 +270,17 @@ def add_plot_settings_to_sidebar():
        plot_settings.subheader('Plot Widgets')
        # plot_settings.button("Reset Defaults",on_click=reset_all_defaults)
        multi_options=[None]+cols
-       color=plot_settings.selectbox(label='Color',options=multi_options,index=multi_options.index(updated_default_dict['color']),key='color')
-       facet=plot_settings.selectbox(label='Facet',options=multi_options,index=multi_options.index(updated_default_dict['facet']),key='facet')
-       height=plot_settings.slider(label='Height',min_value=300,max_value=1200,value=int(updated_default_dict['height']),step=50,key='height')
+       color_help="Choose a column from the data to color the plots by."
+       color=plot_settings.selectbox(label='Color',options=multi_options,index=multi_options.index(updated_default_dict['color']),key='color',help=color_help)
+       facet_help="Choose a column to split the plots by."
+       facet=plot_settings.selectbox(label='Facet',options=multi_options,index=multi_options.index(updated_default_dict['facet']),key='facet',help=facet_help)
+       
+       height=plot_settings.slider(label='Height',min_value=300,max_value=1200,value=int(updated_default_dict['height']),step=50,key='height',help='Height of the plot')
        font_size=plot_settings.slider(label='Font Size',min_value=1,max_value=25,value=int(updated_default_dict['font_size']),key='font_size')
        temp_opts=['SampleID/PlateID', 'Experiment', 'Bacteria', 'SampleOrigin',
        'TestedPhase', 'TimePoint', 'TestedAgent', 'TestedAgentDilution',
         'Plate']
+       temp_opts=cols
        #Choose columns by which to aggregate samples
        #Remove columns that only have one value 
        agg_opts = [opt for opt in temp_opts if opt in cols if len(df[opt].drop_duplicates())>1]
@@ -280,35 +288,49 @@ def add_plot_settings_to_sidebar():
               agg_opts=['Average_by']
               
 
-       
-       names=plot_settings.multiselect(label='Name Samples By Chosen Columns',options=cols,default=agg_opts,key='names')
-       boxwidth=plot_settings.slider(label='Box Width',min_value=0.1,max_value=1.0,value=float(updated_default_dict['boxwidth']),step=0.1,key='boxwidth')
+       names_help=f"""Choose names of clumns the aggregate to represent a sample. \\
+              See following example, where two samples have the same TreatmentName but other parameters are different\\
+              ID | ExpID | TreatmentName \\
+              M1 | RD001 | WetMatrix \\
+              M2 | RD002 | WetMatrix \\
+              If you choose all three columns, you will have two distinct names:\\
+              'M1/RD001/WetMatrix' & 'M2/RD002/WetMatrix'. \\
+              But if you only use TreatmentName column you will get one common name for both samples - 'WetMatrix' - then these samples will be averaged into one box."""
+       names=plot_settings.multiselect(label='Name Samples By Chosen Columns',options=cols,default=agg_opts,key='names',help=names_help)
+       boxwidth_help="Relative space that the box takes - If the value is 1 each box will be connected to the box next to it, decreasing the value decreases the box width and increases the distance between adjacent boxes"
+       boxwidth=plot_settings.slider(label='Box Width',min_value=0.1,max_value=1.0,value=float(updated_default_dict['boxwidth']),step=0.1,key='boxwidth',help=boxwidth_help)
        plot_settings.markdown("---")
-       manually_set_ylim=plot_settings.checkbox("Manually Set Y-Lim", value=False,key='manually_set_ylim')
-       
-       # ylim_bottom,ylim_top=plot_settings.slider(label='Manually set ylim (minimum and maximum)',min_value=-10.0,max_value=10.0,value=[-1.0,8.0],step=0.2,key='ylim')#format="10^%f")
-       ylim_c1,ylim_c2=plot_settings.columns(2)
-       ylim_bottom=ylim_c1.number_input(label='Y-Limit Bottom',min_value=-10.0,max_value=10.0,value=-2.0,step=0.2,key='ylim_min')
-       ylim_top=ylim_c2.number_input(label='Y-Limit Bottom',min_value=-10.0,max_value=10.0,value=5.0,step=0.2,key='ylim_max')
-       
-       plot_settings.markdown("*If the chosen value is x, positive are 10^x, while negative x values are -10^x")
+       manually_set_ylim_help="Select this checkbox to manually set the limits of the Y axis."
+       manually_set_ylim=plot_settings.checkbox("Manually Set Y-Lim", value=False,key='manually_set_ylim', help=manually_set_ylim_help)
+       if manually_set_ylim:
+              # ylim_bottom,ylim_top=plot_settings.slider(label='Manually set ylim (minimum and maximum)',min_value=-10.0,max_value=10.0,value=[-1.0,8.0],step=0.2,key='ylim')#format="10^%f")
+              ylim_c1,ylim_c2=plot_settings.columns(2)
+              ylim_bottom=ylim_c1.number_input(label='Y-Limit Bottom',min_value=-10.0,max_value=10.0,value=-2.0,step=0.2,key='ylim_min')
+              ylim_top=ylim_c2.number_input(label='Y-Limit Bottom',min_value=-10.0,max_value=10.0,value=5.0,step=0.2,key='ylim_max')
+              plot_settings.markdown("*If the chosen value is x, positive are 10^x, while negative x values are -10^x")
        # ylim_bottom=plot_settings.slider(label='Manually set ylim (min)',min_value=-20,max_value=20,value=0)
        ylim_values=plot_settings.markdown(f"")
        plot_settings.markdown("---")
-       points=plot_settings.checkbox(label='Show Points',key='show_points', value=updated_default_dict['points'])
-       xlabels=plot_settings.checkbox(label='Show X axis labels',key='xlabels', value=updated_default_dict['xlabels'])
-       log=plot_settings.checkbox(label='Log Y Axis',key='logy', value=updated_default_dict['log'])
-       start_at_one=plot_settings.checkbox(label='Start Axis at 1',key='start_at_one', value=updated_default_dict['start_at_one'],)#disabled=True)
+       points_help="Shows sample points on the plot next to the boxes. \n \
+              \nTip: If points and plots overlap, you can play with the Box Width slider."
+       points=plot_settings.checkbox(label='Show Points',key='show_points', value=updated_default_dict['points'],help=points_help)
+       xlabels=plot_settings.checkbox(label='Show X axis labels',key='xlabels', value=updated_default_dict['xlabels'],help="Show or hide X axis labels")
+       log=plot_settings.checkbox(label='Log Y Axis',key='logy', value=updated_default_dict['log'],help="When selected, Y axis is in log scale.")
+       start_at_one=plot_settings.checkbox(label='Start Axis at 1',key='start_at_one', value=updated_default_dict['start_at_one'],help='When selected, Y axis starts at 1')#disabled=True)
        # remove_zero=plot_settings.checkbox(label='Remove Zero Values',key='remove_zero', value=updated_default_dict['remove_zero'])
-       remove_zero=plot_settings.selectbox(label='Remove Zero Values',options=["Don't Remove Zero Values",'Remove Zero Values Only When Not All Counts Are Zero','Remove All Zero Values'],key='remove_zero')
-       ref_line=plot_settings.checkbox(label='Draw Reference Line',key='ref_line', value=updated_default_dict['ref_line'])
-       show_meta_on_hover=plot_settings.checkbox("Show Metadata On Hover",key='show_meta_on_hover',value=True)
-       show_axis_on_each=plot_settings.checkbox(label="Show Axis on Each Subplot",value=True)
-       hide_ylabel=plot_settings.checkbox(label="Hide Y-Label",value=False)
-       show_line=plot_settings.checkbox(label="Connect a Line Between Same-Colored Boxes", value=False)
-       annotate=plot_settings.selectbox(label='Show Annotations On Plot',key='annotate',options=[None,'Mean'])
+       remove_zero_help="'Remove Zero Values Only When Not All Counts Are Zero' removes zeros only when some of the counts of the same sample equal to zero."
+       remove_zero=plot_settings.selectbox(label='Remove Zero Values',options=["Don't Remove Zero Values",'Remove Zero Values Only When Not All Counts Are Zero','Remove All Zero Values'],key='remove_zero',help=remove_zero_help)
+       ref_line_help="When selected, a reference line is shown. In the % Survavability plot the line is at 100%, Delta plot reference line is set to 0."
+       ref_line=plot_settings.checkbox(label='Draw Reference Line',key='ref_line', value=updated_default_dict['ref_line'],help=ref_line_help)
+       show_meta_on_hover=plot_settings.checkbox("Show Metadata On Hover",key='show_meta_on_hover',value=True,help="Choose to show or not to show metadata of a sample upon hovering on the plot.")
+       show_axis_on_each=plot_settings.checkbox(label="Show Axis on Each Subplot",value=True,help='When selected, shows Y axis values on each sub-plot. When not selected, shows only on the left sub-plot.')
+       hide_ylabel=plot_settings.checkbox(label="Hide Y-Label",value=False,help='Select to hide Y-axis Label.')
+       show_line_help='When selected, a line is drawn between the averages of the same-colored plots. When multiple subplots are shown, the line is drawn within each subplot separately.'
+       show_line=plot_settings.checkbox(label="Connect a Line Between Same-Colored Boxes", value=False,help=show_line_help)
+       annotate_help="Shows the selected metric (mean/median etc) in the top portion of the chart.\n\nAnnotations currently don't work together with 'facet'."
+       annotate=plot_settings.selectbox(label='Show Annotations On Plot',key='annotate',options=[None,'Mean'],help=annotate_help)
        
-       plot_settings.markdown("Annotations currently don't work together with 'facet'.")
+       
        
 
        
@@ -559,8 +581,8 @@ def auto_assign_ref_sample():
        
        default_columns_for_ref=[x for x in agg_opts if x not in ['TimePoint','TestedAgent','TestedAgentDilution']]
        auto_ref=st.sidebar.expander('Auto Assign Reference Sample (Consult Alon)')
-       auto_ref.markdown("'Columns to take for reference' should be the same columns as taken for the plot names, excluding TestedAgent and TestedAgentDilution. As well as excluding the column by which the reference is determined.")
-       ref_columns=auto_ref.multiselect("Columns to take for reference",options=cols,default=default_columns_for_ref)
+       ref_columns_help="'Columns to take for reference' should be the same columns as taken for the plot names, excluding TestedAgent and TestedAgentDilution. As well as excluding the column by which the reference is determined."
+       ref_columns=auto_ref.multiselect("Columns to take for reference",options=cols,default=default_columns_for_ref,help=ref_columns_help)
        df_melt['ref_name']=df_melt[ref_columns].astype(str).agg('/'.join,axis=1)
        if "TimePoint" in df_melt.columns:
               tp=list(df_melt.columns).index("TimePoint")
