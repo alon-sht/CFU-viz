@@ -305,7 +305,7 @@ def add_plot_settings_to_sidebar():
        show_meta_on_hover=plot_settings.checkbox("Show Metadata On Hover",key='show_meta_on_hover',value=True)
        show_axis_on_each=plot_settings.checkbox(label="Show Axis on Each Subplot",value=True)
        hide_ylabel=plot_settings.checkbox(label="Hide Y-Label",value=False)
-       show_line=plot_settings.checkbox(label="Connect a Line Between Concentration", value=False)
+       show_line=plot_settings.checkbox(label="Connect a Line Between Same-Colored Boxes", value=False)
        annotate=plot_settings.selectbox(label='Show Annotations On Plot',key='annotate',options=[None,'Mean'])
        
        plot_settings.markdown("Annotations currently don't work together with 'facet'.")
@@ -360,14 +360,18 @@ def get_ylim(df,y,force_disable_axis_start_at_one,force_disable_log):
          
          
 def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_axis_start_at_one=False):
-    
+       groupby=['custom_name']
        if color:
               df[color]=df[color].astype(str)
+              groupby.append(color)
+       if facet:
+              groupby.append(facet)
+       
        if force_disable_log: 
               logy=False 
        else: 
               logy=log
-       fig=px.box(df,x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet,facet_col_spacing=0.03)
+       fig=px.box(df,x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet,facet_col_spacing=0.03,boxmode='group')
        min_val,max_val,y_val,how_to_set_ylim=get_ylim(df,y,force_disable_axis_start_at_one,force_disable_log)
        if how_to_set_ylim=='automatically':
               ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set")
@@ -390,7 +394,7 @@ def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_ax
        if points:
               fig.update_traces(boxpoints='all',jitter=0.05)
        else:
-              fig.update_traces(boxpoints=False)
+              fig.update_traces(boxpoints='outliers')
               
        hover_plot = px.bar(df, x="custom_name", y=[y_val] * len(df["custom_name"]),
                                           barmode="overlay",hover_data=cols,facet_col=facet,log_y=log,
@@ -404,27 +408,31 @@ def boxplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_ax
               fig.add_hline(y=ref_val)       
        if annotate:
               ann=[]
-              for i, val in enumerate(list(df_melt.groupby(["custom_name"], sort=False, as_index=False).agg({'value': "mean"}).round(2)['value'])):
+              for i, val in enumerate(list(df_melt.groupby(groupby, sort=False, as_index=False).agg({'value': "mean"}).round(2)['value'])):
                      ann.append(
                             dict(x=i, y=1.05, text=f"{val:.2}", showarrow=False, xref="x", yref="paper"))            
               fig.layout.annotations=ann
               
        if show_line:
-              line_fig=px.line(df.groupby(["custom_name",facet,color], sort=False, as_index=False).agg({y: "mean"}),x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet,facet_col_spacing=0.03,)
+              line_fig=px.line(df.groupby(groupby, sort=False, as_index=False).agg({y: "mean"}),x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet,facet_col_spacing=0.03,)
               line_fig.update_layout(showlegend=False)
               fig.add_traces(line_fig.data)
        return fig
 
 
 def barplot(df,y,ref_val=1,y_label=None,force_disable_log=False,force_disable_axis_start_at_one=False):
-    
+       groupby=['custom_name']
        if color:
               df[color]=df[color].astype(str)
+              groupby.append(color)
+       if facet:
+              groupby.append(facet)
        if force_disable_log: 
               logy=False 
        else: 
               logy=log
-       fig=px.bar(df.groupby(["custom_name",facet,color], sort=False, as_index=False).agg({y: "mean"}),x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet,facet_col_spacing=0.03,barmode='overlay')
+       
+       fig=px.bar(df.groupby(groupby, sort=False, as_index=False).agg({y: "mean"}),x='custom_name',y=y,color=color,height=height,log_y=logy,facet_col=facet,facet_col_spacing=0.03,barmode='overlay')
        min_val,max_val,y_val,how_to_set_ylim=get_ylim(df,y,force_disable_axis_start_at_one,force_disable_log)
        if how_to_set_ylim=='automatically':
               ylim_values.markdown(f"Y Limits are {how_to_set_ylim} set")
