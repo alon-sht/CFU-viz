@@ -216,7 +216,9 @@ def get_filters_and_add_widgets_to_sidebar(df):
               if len(df[y].unique().tolist())>1:
                      widget_dict[y]=form.multiselect(label=str(y),options=df[y].unique().tolist(),default=df[y].unique().tolist(),key=str(y))
                      query+=f"`{y}`  in {widget_dict[y]} & "
+
        form.form_submit_button("Apply Filters")
+
        
 def add_df_sort_settings_to_sidebar():
        global sort_by,manually_sort_values,sort_by_ascending
@@ -283,15 +285,15 @@ def add_plot_settings_to_sidebar():
        multi_options=[None]+cols
        color_help="Choose a column from the data to color the plots by."
        color=plot_settings.selectbox(label='Color',options=multi_options,index=multi_options.index(updated_default_dict['color']),key='color',help=color_help)
-       facet_help="Choose a column to split the plots by."
-       facet=plot_settings.selectbox(label='Facet',options=multi_options,index=multi_options.index(updated_default_dict['facet']),key='facet',help=facet_help)
+       facet_help="Choose a column to split the plots into subplot"
+       facet=plot_settings.selectbox(label='Split Into Subplot',options=multi_options,index=multi_options.index(updated_default_dict['facet']),key='facet',help=facet_help)
        
        height=plot_settings.slider(label='Height',min_value=300,max_value=1200,value=int(updated_default_dict['height']),step=50,key='height',help='Height of the plot')
        font_size=plot_settings.slider(label='Font Size',min_value=1,max_value=25,value=int(updated_default_dict['font_size']),key='font_size')
        temp_opts=['SampleID/PlateID', 'Experiment', 'Bacteria', 'SampleOrigin',
-       'TestedPhase', 'TimePoint', 'TestedAgent', 'TestedAgentDilution',
-        'Plate']
-       temp_opts=cols
+                     'TestedPhase', 'TimePoint', 'TestedAgent', 'TestedAgentDilution',
+                     'Plate']
+       # temp_opts=cols
        #Choose columns by which to aggregate samples
        #Remove columns that only have one value 
        agg_opts = [opt for opt in temp_opts if opt in cols if len(df[opt].drop_duplicates())>1]
@@ -353,7 +355,7 @@ def st_plot_section():
        # Set up section where main cfu plot is shown 
        st_figure=st.container()
        st_figure.markdown("---")
-       st_figure.subheader("Figures")
+       
        st_figure.subheader("CFU Plot")
        #Plot
        fig=boxplot(df_melt,'value',y_label='CFU')
@@ -513,8 +515,10 @@ def choose_reference():
        st.markdown('---')
        st_choose_ref_sample=st.sidebar.expander("Choose Reference Sample")
        st_choose_ref_sample.subheader("Choose Reference Sample")
-       choose_ref_sample=st_choose_ref_sample.selectbox(label='Reference Sample',options=df_filtered['custom_name'].unique(),key='ref_sample')
-       choose_ref_type=st_choose_ref_sample.selectbox(label='Min/Max/Mean/Median',options=['Mean','Median','Min','Max',],key='ref_sample_type')
+       choose_ref_sample_help='Choose which sample to use as reference for the calculation for % survavability.'
+       choose_ref_sample=st_choose_ref_sample.selectbox(label='Reference Sample',options=df_filtered['custom_name'].unique(),key='ref_sample',help=choose_ref_sample_help)
+       choose_ref_type_help='Choose wheter to use the mean/median/max/min value from the reference sample'
+       choose_ref_type=st_choose_ref_sample.selectbox(label='Min/Max/Mean/Median',options=['Mean','Median','Min','Max',],key='ref_sample_type',help=choose_ref_type_help)
        # ref_opts=df_filtered[df_filtered['custom_name'].isin([choose_ref_sample])][y_variables]
        ref_opts=df_melt[df_melt['custom_name']==choose_ref_sample]['value']
        if choose_ref_type=='Min':
@@ -696,7 +700,7 @@ def save_and_upload_settings():
                                           file_name=settings_filename,)
        save_and_use_settings.markdown("---")
        
-       upload_settings_widget=save_and_use_settings.file_uploader(label='Upload Previously Saved Settings', type=['json'],accept_multiple_files=False)
+       upload_settings_widget=save_and_use_settings.file_uploader(label='Upload Previously Saved Settings File', type=['json'],accept_multiple_files=False)
        
        if upload_settings_widget:
               uploaded_settings=loads(upload_settings_widget.getvalue())
@@ -745,14 +749,27 @@ def main():
               auto_assign_ref_sample()              
               save_and_upload_settings()
               st_data_section()
-              st_plot_section()
-              percent_survaviability_plot_section()
-              ref_excluded_plot_section()
-              try:
-                     auto_ref_excluded_plot_section()
-              except Exception as e:
-                     st.subheader("Could not do auto-assign reference :(")
-                     st.markdown(e)
+              
+              st.markdown("---")
+              st.subheader("Figures")
+              choose_plot=st.radio("Choose which plot you want to see:", options=['Regular CFU Plot', '% Survivability Plot','Delta From Reference','Delta from Auto-Set Reference'])
+              if choose_plot=='Regular CFU Plot':
+                     st_plot_section()
+              elif choose_plot=='% Survivability Plot':
+                     percent_survaviability_plot_section()
+              elif choose_plot=='Delta From Reference':
+                     ref_excluded_plot_section()       
+              elif choose_plot=='Delta from Auto-Set Reference':
+                     try:
+                            auto_ref_excluded_plot_section()
+                     except Exception as e:
+                            st.text("Could not do auto-assign reference :(")
+                            st.warning(e)       
+              else:
+                     st.warning('Something went wrong')
+              
+              
+              
               
               # st.sidebar.write(dict(st.session_state))
               
