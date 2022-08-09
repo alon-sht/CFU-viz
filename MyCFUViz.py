@@ -693,8 +693,13 @@ def save_and_upload_settings():
        save_and_use_settings=st.sidebar.expander("Save Current Settings Or Upload Saved Settings")
        settings_to_download = {k: v for k, v in st.session_state.items()
                      if "button" not in k and "file_uploader" not in k and "FormSubmitter" not in k}
-
-       settings_filename=timestr = strftime("%Y%m%d-%H%M%S")+str(" - MyCFU Settings")+str(uploaded_file_names)+str(".json")
+       custom_filename=save_and_use_settings.text_input(label='Choose name for the settings file', placeholder ='Leave blank to use current date and time as the file name.',value="")
+       add_date_to_name=save_and_use_settings.checkbox("Add date and time to filename", value=True)
+       if add_date_to_name:
+              timeanddate=strftime("%Y%m%d-%H%M%S")
+       else:
+              timeanddate=""
+       settings_filename=timestr = str(timeanddate)+" "+str(custom_filename)+str(".json")
        save_and_use_settings.download_button(label="Save Current Settings as a File",
                                           data=dumps(settings_to_download,default=str),
                                           file_name=settings_filename,)
