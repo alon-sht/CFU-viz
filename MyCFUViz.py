@@ -66,21 +66,32 @@ def st_template_download():
        # Set up template download section
        download_column=st.container()
        download_column.subheader("Template to use for the app")
+       download_column.markdown('Feel free to change the names of Sample Data columns or add new columns. Other columns should not be changed.')
        with open('Template_CFU.xlsx','rb') as f:
               download_column.download_button('Click Me to Download Template XLSX File',f,file_name='Template.xlsx')
-       download_column.markdown('Feel free to change the names of Sample Data columns or add new columns. Other columns should not be changed')
+       
 
 def st_file_upload_section():
        # Set up file upload section of app
-       global upload_data_widget
-       upload_column=st.container()
-       upload_column.subheader("File Upload (use intended template)")
-       upload_data_widget=upload_column.file_uploader(label='Upload File', type=['xlsx'],accept_multiple_files=True,key='data')
+       global upload_data_widget,uploaded_file_names
+       upload_container=st.container()
+       upload_container_col1,upload_container_col2=upload_container.columns(2)
+       upload_container.subheader("File Upload (use intended template)")
+       upload_container.markdown("You can add multiple files, the app will combine them. Make sure the columns in each file are the same.")
+       upload_data_widget=upload_container.file_uploader(label='Upload File', type=['xlsx'],accept_multiple_files=True)
+       uploaded_file_names=''
+       # for file in upload_data_widget:
+       #        upload_data_widget+=str(file.name)
+       #        upload_data_widget+=","
+       # uploaded_file_names=uploaded_file_names[:-1]
+              
+       
+       
 
 def load_dataframe():
        global df,loaded
        df=excel_to_df(upload_data_widget)
-       st.session_state.df=df
+       # st.session_state.df=df
        loaded=True
 
 def return_df(which):
@@ -97,7 +108,7 @@ def filter_data():
        # Filter data according to widgets
        global df_filtered, df_melt
        df_filtered=df.copy().query(query[:-2])
-       st.session_state.df_filtered=df_filtered
+       # st.session_state.df_filtered=df_filtered
        df_filtered['only_zero']=np.where(df_filtered[y_variables].mean(axis=1)==0,'y','n')
        # st.write(.astype(str))
        if remove_zero=='Remove Zero Values Only When Not All Counts Are Zero':
@@ -186,7 +197,7 @@ def get_filters_and_add_widgets_to_sidebar(df):
        widget_dict={}
        query=f""
        st.sidebar.header('Widgets',)
-       filter_widgets=st.sidebar.expander("Data Filters.")
+       filter_widgets=st.sidebar.expander("Data Filters")
        filter_widgets.subheader('Filter Data')
        filter_widgets.markdown("After selecting filters press the 'Apply Filters' button at the bottom.")
        filter_widgets.markdown("Only shows columns that contain more than 1 unique value.")
@@ -305,8 +316,8 @@ def add_plot_settings_to_sidebar():
        if manually_set_ylim:
               # ylim_bottom,ylim_top=plot_settings.slider(label='Manually set ylim (minimum and maximum)',min_value=-10.0,max_value=10.0,value=[-1.0,8.0],step=0.2,key='ylim')#format="10^%f")
               ylim_c1,ylim_c2=plot_settings.columns(2)
-              ylim_bottom=ylim_c1.number_input(label='Y-Limit Bottom',min_value=-10.0,max_value=10.0,value=-2.0,step=0.2,key='ylim_min')
-              ylim_top=ylim_c2.number_input(label='Y-Limit Bottom',min_value=-10.0,max_value=10.0,value=5.0,step=0.2,key='ylim_max')
+              ylim_bottom=ylim_c1.number_input(label='Y-Limit Bottom',min_value=-15.00,max_value=15.00,value=-2.00,step=0.02,key='ylim_min')
+              ylim_top=ylim_c2.number_input(label='Y-Limit Bottom',min_value=-15.00,max_value=15.00,value=5.00,step=0.02,key='ylim_max')
               plot_settings.markdown("*If the chosen value is x, positive are 10^x, while negative x values are -10^x")
        # ylim_bottom=plot_settings.slider(label='Manually set ylim (min)',min_value=-20,max_value=20,value=0)
        ylim_values=plot_settings.markdown(f"")
@@ -670,7 +681,45 @@ def set_values_from_url(url_params):
                      else:
                             val=True
                      st.session_state[widget]=val
+
+def save_and_upload_settings():
+       from json import dumps, loads
+       from time import strftime
+       global save_and_use_settings
+       save_and_use_settings=st.sidebar.expander("Save Current Settings Or Upload Saved Settings")
+       settings_to_download = {k: v for k, v in st.session_state.items()
+                     if "button" not in k and "file_uploader" not in k and "FormSubmitter" not in k}
+
+       settings_filename=timestr = strftime("%Y%m%d-%H%M%S")+str(" - MyCFU Settings")+str(uploaded_file_names)+str(".json")
+       save_and_use_settings.download_button(label="Save Current Settings as a File",
+                                          data=dumps(settings_to_download,default=str),
+                                          file_name=settings_filename,)
+       save_and_use_settings.markdown("---")
+       
+       upload_settings_widget=save_and_use_settings.file_uploader(label='Upload Previously Saved Settings', type=['json'],accept_multiple_files=False)
+       
+       if upload_settings_widget:
+              uploaded_settings=loads(upload_settings_widget.getvalue())
+              failed=[]
+              succeeded=[]
+              button_apply_uploaded_settings=save_and_use_settings.button("Apply Settings",on_click=apply_uploaded_settings, args=(uploaded_settings,))
               
+
+def apply_uploaded_settings(json_settings):
+       failed=[]
+       succeeded=[]
+       for k,v in json_settings.items():
+              try:
+                     st.session_state[k]=v
+                     succeeded.append(k)
+              except:
+                     failed.append(k)
+       save_and_use_settings.success(f"Successfully uploaded {str(len(succeeded))} out of {str(len(succeeded)+len(failed))} settings")
+       if len(failed)>0:
+              save_and_use_settings.error(f"Failed to upload the following settings: {failed}")
+                     
+                     
+                     
 def main():
        # Main part of the app
        # st.sidebar.button("Get Parameters from URL",on_click=set_values_from_url)
@@ -694,6 +743,7 @@ def main():
               filter_data()
               choose_reference()
               auto_assign_ref_sample()              
+              save_and_upload_settings()
               st_data_section()
               st_plot_section()
               percent_survaviability_plot_section()
@@ -703,6 +753,12 @@ def main():
               except Exception as e:
                      st.subheader("Could not do auto-assign reference :(")
                      st.markdown(e)
+              
+              # st.sidebar.write(dict(st.session_state))
+              
+              
+
+              
               # st.sidebar.write(st.session_state)
               # st.sidebar.button("Set Parameters in URL",on_click=update_parameters_in_link)
               # st.sidebar.markdown("After setting parameters in the URL you can copy it and save it. Next time you can use the fill link and most parameters will be saved (not including filters).")
