@@ -354,7 +354,7 @@ def add_df_sort_settings_to_sidebar():
 
 def add_plot_settings_to_sidebar():
     # Adds plot settings widget to sidebar
-    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, hide_ylabel, show_line  # ,color_palette_list
+    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line,boxmean  # ,color_palette_list
 
     # updated_default_dict=set_values_from_url(default_dict)
     updated_default_dict = default_dict
@@ -539,10 +539,11 @@ def add_plot_settings_to_sidebar():
     show_axis_on_each = plot_settings.checkbox(
         label="Show Axis on Each Subplot",
         value=True,
+        key='show_axis_on_each',
         help="When selected, shows Y axis values on each sub-plot. When not selected, shows only on the left sub-plot.",
     )
-    hide_ylabel = plot_settings.checkbox(
-        label="Hide Y-Label", value=False, help="Select to hide Y-axis Label."
+    show_ylabel = plot_settings.checkbox(
+        label="Show Y-Label", value=True, help="Select to hide Y-axis Label.",key='show_y'
     )
     show_line_help = "When selected, a line is drawn between the averages of the same-colored plots. When multiple subplots are shown, the line is drawn within each subplot separately."
     show_line = plot_settings.checkbox(
@@ -557,6 +558,7 @@ def add_plot_settings_to_sidebar():
         options=[None, "Mean"],
         help=annotate_help,
     )
+    boxmean=plot_settings.selectbox("Show on Box",options=['Mean and Median','Mean, Median and SD','Only Median'],key='boxmean')
 
 
 def add_custom_name_column():
@@ -655,7 +657,15 @@ def boxplot(
         ),
         hovermode="x",
     )
-    fig.update_traces(width=boxwidth, boxmean="sd")
+    if boxmean=='Mean and Median':
+        boxmean_val=True
+    elif boxmean=='Mean, Median and SD':
+        boxmean_val='sd'
+    elif boxmean=='Only Median':
+        boxmean_val=None
+    
+        
+    fig.update_traces(width=boxwidth, boxmean=boxmean_val)
     fig.update_xaxes(
         tickangle=90,
         matches=None,
@@ -664,7 +674,7 @@ def boxplot(
         autorange=True,
         showticklabels=xlabels,
     )
-    if y_label and not hide_ylabel:
+    if y_label and show_ylabel:
         label = y_label
     else:
         label = None
@@ -790,7 +800,7 @@ def barplot(
         autorange=True,
         showticklabels=xlabels,
     )
-    if y_label and not hide_ylabel:
+    if y_label and show_ylabel:
         label = y_label
     else:
         label = None
