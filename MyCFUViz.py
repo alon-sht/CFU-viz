@@ -372,11 +372,11 @@ def add_plot_settings_to_sidebar():
         help=color_help,
     )
 
-    color_palette = plot_settings.selectbox(
-        "Select Color Palette",
-        options=dir(px.colors.qualitative),
-        index=dir(px.colors.qualitative).index("Plotly"),
-    )
+    # color_palette = plot_settings.selectbox(
+    #     "Select Color Palette",
+    #     options=dir(px.colors.qualitative),
+    #     index=dir(px.colors.qualitative).index("Plotly"),
+    # )
     # print(exec("px.colors.qualitative."+str(color_palette)))
 
     # print(color_palette_list)
@@ -639,6 +639,8 @@ def boxplot(
         facet_col=facet,
         facet_col_spacing=0.03,
         boxmode="group",
+        # points=
+        # hoveron='both'
     )  # color_discrete_sequence=color_palette_list)
     min_val, max_val, y_val, how_to_set_ylim = get_ylim(
         df, y, force_disable_axis_start_at_one, force_disable_log
@@ -657,6 +659,7 @@ def boxplot(
         ),
         hovermode="x",
     )
+    fig.for_each_annotation(lambda a: a.update(text=a.text.replace(str(facet)+"=", "")))
     if boxmean=='Mean and Median':
         boxmean_val=True
     elif boxmean=='Mean, Median and SD':
