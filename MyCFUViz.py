@@ -20,13 +20,6 @@ hide_streamlit_style = """
               <style>
               #MainMenu {visibility: hidden;}
               footer {visibility: hidden;}
-              [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
-                     width: 500px;
-                     }
-              [data-testid="stSidebar"][aria-expanded="false"] > div:first-child {
-                     width: 500px;
-                     margin-left: -500px;
-                     }
             </style>
             """
 
