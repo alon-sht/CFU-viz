@@ -245,7 +245,6 @@ def get_filters_and_add_widgets_to_sidebar(df):
         sample_data_col = df.columns[-1]
 
     for y in df.columns[1 : df.columns.get_loc(sample_data_col)]:
-
         if len(df[y].unique().tolist()) > 1:
             widget_dict[y] = form.multiselect(
                 label=str(y),
@@ -347,7 +346,7 @@ def add_df_sort_settings_to_sidebar():
 
 def add_plot_settings_to_sidebar():
     # Adds plot settings widget to sidebar
-    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line,boxmean  # ,color_palette_list
+    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean  # ,color_palette_list
 
     # updated_default_dict=set_values_from_url(default_dict)
     updated_default_dict = default_dict
@@ -532,11 +531,14 @@ def add_plot_settings_to_sidebar():
     show_axis_on_each = plot_settings.checkbox(
         label="Show Axis on Each Subplot",
         value=True,
-        key='show_axis_on_each',
+        key="show_axis_on_each",
         help="When selected, shows Y axis values on each sub-plot. When not selected, shows only on the left sub-plot.",
     )
     show_ylabel = plot_settings.checkbox(
-        label="Show Y-Label", value=True, help="Select to hide Y-axis Label.",key='show_y'
+        label="Show Y-Label",
+        value=True,
+        help="Select to hide Y-axis Label.",
+        key="show_y",
     )
     show_line_help = "When selected, a line is drawn between the averages of the same-colored plots. When multiple subplots are shown, the line is drawn within each subplot separately."
     show_line = plot_settings.checkbox(
@@ -551,7 +553,11 @@ def add_plot_settings_to_sidebar():
         options=[None, "Mean"],
         help=annotate_help,
     )
-    boxmean=plot_settings.selectbox("Show on Box",options=['Mean and Median','Mean, Median and SD','Only Median'],key='boxmean')
+    boxmean = plot_settings.selectbox(
+        "Show on Box",
+        options=["Mean and Median", "Mean, Median and SD", "Only Median"],
+        key="boxmean",
+    )
 
 
 def add_custom_name_column():
@@ -566,7 +572,15 @@ def st_plot_section():
     st_figure.subheader("CFU Plot")
     # Plot
     fig = boxplot(df_melt, "value", y_label="CFU")
-    st_figure.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(margin=dict(b=140))
+    st_figure.plotly_chart(fig, use_container_width=True, theme=None)
+    with st.expander("DataFrame"):
+        df_to_show = (
+            df_melt.groupby("custom_name").agg({"value": ["mean", "std"]}).reset_index()
+        )
+        # remove multiindex for column names by merging them
+        df_to_show.columns = df_to_show.columns.map("_".join)
+        st.write(df_to_show)
 
 
 def get_ylim(df, y, force_disable_axis_start_at_one, force_disable_log):
@@ -652,15 +666,16 @@ def boxplot(
         ),
         hovermode="x",
     )
-    fig.for_each_annotation(lambda a: a.update(text=a.text.replace(str(facet)+"=", "")))
-    if boxmean=='Mean and Median':
-        boxmean_val=True
-    elif boxmean=='Mean, Median and SD':
-        boxmean_val='sd'
-    elif boxmean=='Only Median':
-        boxmean_val=None
-    
-        
+    fig.for_each_annotation(
+        lambda a: a.update(text=a.text.replace(str(facet) + "=", ""))
+    )
+    if boxmean == "Mean and Median":
+        boxmean_val = True
+    elif boxmean == "Mean, Median and SD":
+        boxmean_val = "sd"
+    elif boxmean == "Only Median":
+        boxmean_val = None
+
     fig.update_traces(width=boxwidth, boxmean=boxmean_val)
     fig.update_xaxes(
         tickangle=90,
@@ -902,11 +917,10 @@ def percent_survaviability_plot_section():
 
     # Plot % out of reference plot
     fig = boxplot(df_melt, "value_norm", ref_val=100, y_label="% Survivability")
-    st_survivability.plotly_chart(fig, use_container_width=True)
+    st_survivability.plotly_chart(fig, use_container_width=True, theme=None)
 
 
 def ref_excluded_plot_section():
-
     st.markdown("---")
     st_delta_plot = st.container()
     st_delta_plot.subheader("Delta From Reference")
@@ -927,11 +941,10 @@ def ref_excluded_plot_section():
         force_disable_log=True,
         force_disable_axis_start_at_one=True,
     )
-    st_delta_plot.plotly_chart(fig2, use_container_width=True)
+    st_delta_plot.plotly_chart(fig2, use_container_width=True, theme=None)
 
 
 def auto_ref_excluded_plot_section():
-
     st.markdown("---")
     st_auto_delta_plot = st.container()
     st_auto_delta_plot.subheader("Delta From Reference (auto-set)")
@@ -963,13 +976,12 @@ def auto_ref_excluded_plot_section():
         "I consulted Alon and I want to see this plot"
     )
     if delta_auto_set:
-        st_auto_delta_plot.plotly_chart(fig3, use_container_width=True)
+        st_auto_delta_plot.plotly_chart(fig3, use_container_width=True, theme=None)
         st_auto_delta_plot.subheader("Bar Chart Using Only Mean Value")
-        st_auto_delta_plot.plotly_chart(fig4, use_container_width=True)
+        st_auto_delta_plot.plotly_chart(fig4, use_container_width=True, theme=None)
 
 
 def auto_assign_ref_sample():
-
     default_columns_for_ref = [
         x
         for x in agg_opts
@@ -1180,7 +1192,6 @@ def main():
     if upload_data_widget:
         load_dataframe()
     if loaded:
-
         add_logo_and_links_to_sidebar()
         get_filters_and_add_widgets_to_sidebar(df)
         add_df_sort_settings_to_sidebar()
