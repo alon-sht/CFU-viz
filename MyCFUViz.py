@@ -7,6 +7,9 @@ from io import BytesIO
 import streamlit as st
 from PIL import Image
 import warnings
+import plotly.io as pio
+
+pio.templates.default = "plotly"
 
 
 # %%
@@ -574,6 +577,16 @@ def st_plot_section():
     fig = boxplot(df_melt, "value", y_label="CFU")
     fig.update_layout(margin=dict(b=140))
     st_figure.plotly_chart(fig, use_container_width=True, theme=None)
+    import io
+
+    buffer = io.StringIO()
+    # html_bytes = BytesIO(buffer.getvalue().encode())
+    fig.write_html(file=buffer, include_plotlyjs="cdn")
+    st.download_button(
+        "Download Current Plot as HTML",
+        data=buffer.getvalue().encode(),
+        file_name="plot.html",
+    )
     with st.expander("DataFrame"):
         df_to_show = (
             df_melt.groupby("custom_name").agg({"value": ["mean", "std"]}).reset_index()
