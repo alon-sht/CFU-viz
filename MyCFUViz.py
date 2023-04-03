@@ -145,7 +145,7 @@ def filter_data():
         df_filtered[y_variables] = df_filtered[y_variables].replace(0, np.nan)
     elif remove_zero == "Don't Remove Zero Values":
         df_filtered[y_variables] = df_filtered[y_variables].replace(0, 1.00001)
-    if manually_sort_values and "TestedAgentDilution" in df.columns:
+    if manually_sort_values:
         # df_filtered['TestedAgentDilution']=df_filtered['TestedAgentDilution'].str.extract('(\d+)', expand=False).astype('float').astype('Int64')
         df_filtered = df_filtered.sort_values(by=sort_by, ascending=sort_by_ascending)
     df_filtered["custom_name"] = df_filtered[names].astype(str).agg("/".join, axis=1)
@@ -587,6 +587,58 @@ def st_plot_section():
         data=buffer.getvalue().encode(),
         file_name="plot.html",
     )
+    from scipy.stats import mannwhitneyu, wilcoxon, kruskal
+
+    statistic = st.selectbox(
+        "Choose Statistic Test", options=["Mann Whitney U", "Kruskal Wallis"]
+    )
+
+    from itertools import combinations
+
+    df_list = []
+    for i, (name1, name2) in enumerate(
+        combinations(df_melt["custom_name"].unique(), 2)
+    ):
+        if statistic == "Mann Whitney U":
+            stat, p = mannwhitneyu(
+                df_melt[df_melt["custom_name"] == name1]["value"].dropna().tolist(),
+                df_melt[df_melt["custom_name"] == name2]["value"].dropna().tolist(),
+            )
+        elif statistic == "Kruskal Wallis":
+            stat, p = kruskal(
+                df_melt[df_melt["custom_name"] == name1]["value"].dropna().tolist(),
+                df_melt[df_melt["custom_name"] == name2]["value"].dropna().tolist(),
+            )
+        df_list.append(
+            [
+                name1,
+                name2,
+                df_melt[df_melt["custom_name"] == name1]["value"].dropna().median(),
+                df_melt[df_melt["custom_name"] == name1]["value"].dropna().mean(),
+                df_melt[df_melt["custom_name"] == name2]["value"].dropna().median(),
+                df_melt[df_melt["custom_name"] == name2]["value"].dropna().mean(),
+                stat,
+                p,
+                True if p < 0.05 else False,
+            ]
+        )
+
+    st.write(
+        pd.DataFrame(
+            df_list,
+            columns=[
+                "Group 1",
+                "Group 2",
+                "Median 1",
+                "Mean 1",
+                "Median 2",
+                "Mean 2",
+                "Statistic",
+                "P-Value",
+                "Significant",
+            ],
+        )
+    )
     with st.expander("DataFrame"):
         df_to_show = (
             df_melt.groupby("custom_name").agg({"value": ["mean", "std"]}).reset_index()
@@ -662,6 +714,7 @@ def boxplot(
         # points=
         # hoveron='both'
     )  # color_discrete_sequence=color_palette_list)
+    fig.update_xaxes(categoryorder="array", categoryarray=df["custom_name"].tolist())
     min_val, max_val, y_val, how_to_set_ylim = get_ylim(
         df, y, force_disable_axis_start_at_one, force_disable_log
     )
