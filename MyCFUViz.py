@@ -8,6 +8,7 @@ import streamlit as st
 from PIL import Image
 import warnings
 import plotly.io as pio
+from scipy.stats import mannwhitneyu, wilcoxon, kruskal
 
 pio.templates.default = "plotly"
 
@@ -576,7 +577,8 @@ def st_plot_section():
     # Plot
     fig = boxplot(df_melt, "value", y_label="CFU")
     fig.update_layout(margin=dict(b=140))
-    st_figure.plotly_chart(fig, use_container_width=True, theme=None)
+    # st.write(fig.to_dict()["data"])
+
     import io
 
     buffer = io.StringIO()
@@ -587,7 +589,6 @@ def st_plot_section():
         data=buffer.getvalue().encode(),
         file_name="plot.html",
     )
-    from scipy.stats import mannwhitneyu, wilcoxon, kruskal
 
     statistic = st.selectbox(
         "Choose Statistic Test", options=["Mann Whitney U", "Kruskal Wallis"]
@@ -612,33 +613,58 @@ def st_plot_section():
         df_list.append(
             [
                 name1,
+                np.where(df_melt["custom_name"].unique() == name1)[0][0],
                 name2,
+                np.where(df_melt["custom_name"].unique() == name2)[0][0],
                 df_melt[df_melt["custom_name"] == name1]["value"].dropna().median(),
                 df_melt[df_melt["custom_name"] == name1]["value"].dropna().mean(),
                 df_melt[df_melt["custom_name"] == name2]["value"].dropna().median(),
                 df_melt[df_melt["custom_name"] == name2]["value"].dropna().mean(),
                 stat,
                 p,
-                True if p < 0.05 else False,
+                "ns" if p >= 0.05 else "YES",
             ]
         )
-
-    st.write(
-        pd.DataFrame(
-            df_list,
-            columns=[
-                "Group 1",
-                "Group 2",
-                "Median 1",
-                "Mean 1",
-                "Median 2",
-                "Mean 2",
-                "Statistic",
-                "P-Value",
-                "Significant",
-            ],
-        )
+    from st_aggrid import (
+        GridOptionsBuilder,
+        AgGrid,
+        GridUpdateMode,
+        DataReturnMode,
+        JsCode,
     )
+
+    ag_df = pd.DataFrame(
+        df_list,
+        columns=[
+            "Group 1",
+            "I1",
+            "Group 2",
+            "I2",
+            "Median 1",
+            "Mean 1",
+            "Median 2",
+            "Mean 2",
+            "Statistic",
+            "P-Value",
+            "Significant",
+        ],
+    )
+    gb = GridOptionsBuilder.from_dataframe(ag_df)
+
+    gb.configure_selection("multiple", use_checkbox=True)
+    gridOptions = gb.build()
+    # ag_dict = {"rowSelection": "multiple"}
+    st.write(
+        "Select the p-values you want to add to the plot (only works when the plot is not split into subplots)"
+    )
+    x = AgGrid(ag_df, gridOptions=gridOptions, columns_auto_size_mode="FIT_CONTENTS")
+    p_to_add = []
+    for i in x.selected_rows:
+        p_to_add.append([i["I1"], i["I2"], i["P-Value"]])
+    # st.write(p_to_add)
+
+    add_p(fig, p_to_add)
+    st_figure.plotly_chart(fig, use_container_width=True, theme=None)
     with st.expander("DataFrame"):
         df_to_show = (
             df_melt.groupby("custom_name").agg({"value": ["mean", "std"]}).reset_index()
@@ -711,9 +737,8 @@ def boxplot(
         facet_col=facet,
         facet_col_spacing=0.03,
         boxmode="group",
-        # points=
-        # hoveron='both'
-    )  # color_discrete_sequence=color_palette_list)
+    )
+
     fig.update_xaxes(categoryorder="array", categoryarray=df["custom_name"].tolist())
     min_val, max_val, y_val, how_to_set_ylim = get_ylim(
         df, y, force_disable_axis_start_at_one, force_disable_log
@@ -726,6 +751,7 @@ def boxplot(
         )
 
     fig.update_layout(
+        margin={"t": 100},
         yaxis_range=[min_val, max_val],
         font=dict(
             size=font_size,
@@ -1243,6 +1269,37 @@ def apply_uploaded_settings(json_settings):
     if len(failed) > 0:
         save_and_use_settings.error(
             f"Failed to upload the following settings: {failed}"
+        )
+
+
+def add_p(fig, array_cols):
+    h = 1.00
+    for [ind1, ind2, val] in array_cols:
+        if val >= 0.05:
+            symbol = "ns"
+        elif val >= 0.01:
+            symbol = "*"
+        elif val >= 0.001:
+            symbol = "**"
+        else:
+            symbol = "***"
+
+        h += 0.04
+        fig.add_shape(
+            type="line",
+            yref="paper",
+            x0=ind1,
+            y0=h,
+            x1=ind2,
+            y1=h,
+        )
+
+        fig.add_annotation(
+            x=(ind1 + ind2) / 2,
+            text=symbol,
+            y=h + 0.04,
+            yref="paper",
+            showarrow=False,
         )
 
 
