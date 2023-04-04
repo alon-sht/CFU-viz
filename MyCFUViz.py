@@ -622,7 +622,14 @@ def st_plot_section():
                 df_melt[df_melt["custom_name"] == name2]["value"].dropna().mean(),
                 stat,
                 p,
-                "ns" if p >= 0.05 else "YES",
+                # "ns" if p >= 0.05 else "YES",
+                "ns"
+                if p >= 0.05
+                else "*"
+                if p >= 0.01
+                else "**"
+                if p >= 0.001
+                else "***",
             ]
         )
     from st_aggrid import (
@@ -649,21 +656,31 @@ def st_plot_section():
             "Significant",
         ],
     )
+    ag_df["Level"] = 1
     gb = GridOptionsBuilder.from_dataframe(ag_df)
 
     gb.configure_selection("multiple", use_checkbox=True)
+    gb.configure_column("Level", editable=True)
+
     gridOptions = gb.build()
     # ag_dict = {"rowSelection": "multiple"}
     st.write(
         "Select the p-values you want to add to the plot (only works when the plot is not split into subplots)"
     )
+    manually_set_p_height = st.checkbox(
+        "Manually set p-value height", value=False, key="manually_set_p_height"
+    )
+    if manually_set_p_height:
+        st.write(
+            "Edit the 'Level' column to change the height of the p-value shown (By double clicking and pressing Enter to accept)."
+        )
     x = AgGrid(ag_df, gridOptions=gridOptions, columns_auto_size_mode="FIT_CONTENTS")
     p_to_add = []
     for i in x.selected_rows:
-        p_to_add.append([i["I1"], i["I2"], i["P-Value"]])
+        p_to_add.append([i["I1"], i["I2"], i["Significant"], i["Level"]])
     # st.write(p_to_add)
 
-    add_p(fig, p_to_add)
+    add_p(fig, p_to_add, manually_set_p_height)
     st_figure.plotly_chart(fig, use_container_width=True, theme=None)
     with st.expander("DataFrame"):
         df_to_show = (
@@ -1272,19 +1289,12 @@ def apply_uploaded_settings(json_settings):
         )
 
 
-def add_p(fig, array_cols):
+def add_p(fig, array_cols, manually_set_p_height):
     h = 1.00
-    for [ind1, ind2, val] in array_cols:
-        if val >= 0.05:
-            symbol = "ns"
-        elif val >= 0.01:
-            symbol = "*"
-        elif val >= 0.001:
-            symbol = "**"
-        else:
-            symbol = "***"
-
+    for [ind1, ind2, symbol, level] in array_cols:
         h += 0.04
+        if manually_set_p_height:
+            h = 1 + (0.06 * int(level))
         fig.add_shape(
             type="line",
             yref="paper",
@@ -1297,8 +1307,9 @@ def add_p(fig, array_cols):
         fig.add_annotation(
             x=(ind1 + ind2) / 2,
             text=symbol,
-            y=h + 0.04,
+            y=h + 0.06,
             yref="paper",
+            font_size=12,
             showarrow=False,
         )
 
