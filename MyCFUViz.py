@@ -350,7 +350,7 @@ def add_df_sort_settings_to_sidebar():
 
 def add_plot_settings_to_sidebar():
     # Adds plot settings widget to sidebar
-    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean  # ,color_palette_list
+    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean,annotate_format  # ,color_palette_list
 
     # updated_default_dict=set_values_from_url(default_dict)
     updated_default_dict = default_dict
@@ -554,8 +554,15 @@ def add_plot_settings_to_sidebar():
     annotate = plot_settings.selectbox(
         label="Show Annotations On Plot",
         key="annotate",
-        options=[None, "Mean"],
+        options=[None, "Mean", "Median"],
         help=annotate_help,
+    )
+    annotate_format_help = "Shows the selected metric (mean/median etc) in the top portion of the chart.\n\nAnnotations currently don't work together with 'facet'."
+    annotate_format = plot_settings.selectbox(
+        label="Show Annotations On Plot",
+        key="annotate_format",
+        options=["Scientific", "Decimal"],
+        help=annotate_format_help,
     )
     boxmean = plot_settings.selectbox(
         "Show on Box",
@@ -589,98 +596,99 @@ def st_plot_section():
         data=buffer.getvalue().encode(),
         file_name="plot.html",
     )
-
-    statistic = st.selectbox(
-        "Choose Statistic Test", options=["Mann Whitney U", "Kruskal Wallis"]
-    )
-
-    from itertools import combinations
-
-    df_list = []
-    for i, (name1, name2) in enumerate(
-        combinations(df_melt["custom_name"].unique(), 2)
-    ):
-        if statistic == "Mann Whitney U":
-            stat, p = mannwhitneyu(
-                df_melt[df_melt["custom_name"] == name1]["value"].dropna().tolist(),
-                df_melt[df_melt["custom_name"] == name2]["value"].dropna().tolist(),
-            )
-        elif statistic == "Kruskal Wallis":
-            stat, p = kruskal(
-                df_melt[df_melt["custom_name"] == name1]["value"].dropna().tolist(),
-                df_melt[df_melt["custom_name"] == name2]["value"].dropna().tolist(),
-            )
-        df_list.append(
-            [
-                name1,
-                np.where(df_melt["custom_name"].unique() == name1)[0][0],
-                name2,
-                np.where(df_melt["custom_name"].unique() == name2)[0][0],
-                df_melt[df_melt["custom_name"] == name1]["value"].dropna().median(),
-                df_melt[df_melt["custom_name"] == name1]["value"].dropna().mean(),
-                df_melt[df_melt["custom_name"] == name2]["value"].dropna().median(),
-                df_melt[df_melt["custom_name"] == name2]["value"].dropna().mean(),
-                stat,
-                p,
-                # "ns" if p >= 0.05 else "YES",
-                "ns"
-                if p >= 0.05
-                else "*"
-                if p >= 0.01
-                else "**"
-                if p >= 0.001
-                else "***",
-            ]
+    stat_bool = st.checkbox("Show Statistic Test Results")
+    if stat_bool:
+        statistic = st.selectbox(
+            "Choose Statistic Test", options=["Mann Whitney U", "Kruskal Wallis"]
         )
-    from st_aggrid import (
-        GridOptionsBuilder,
-        AgGrid,
-        GridUpdateMode,
-        DataReturnMode,
-        JsCode,
-    )
 
-    ag_df = pd.DataFrame(
-        df_list,
-        columns=[
-            "Group 1",
-            "I1",
-            "Group 2",
-            "I2",
-            "Median 1",
-            "Mean 1",
-            "Median 2",
-            "Mean 2",
-            "Statistic",
-            "P-Value",
-            "Significant",
-        ],
-    )
-    ag_df["Level"] = 1
-    gb = GridOptionsBuilder.from_dataframe(ag_df)
+        from itertools import combinations
 
-    gb.configure_selection("multiple", use_checkbox=True)
-    gb.configure_column("Level", editable=True)
+        df_list = []
+        for i, (name1, name2) in enumerate(
+            combinations(df_melt["custom_name"].unique(), 2)
+        ):
+            if statistic == "Mann Whitney U":
+                stat, p = mannwhitneyu(
+                    df_melt[df_melt["custom_name"] == name1]["value"].dropna().tolist(),
+                    df_melt[df_melt["custom_name"] == name2]["value"].dropna().tolist(),
+                )
+            elif statistic == "Kruskal Wallis":
+                stat, p = kruskal(
+                    df_melt[df_melt["custom_name"] == name1]["value"].dropna().tolist(),
+                    df_melt[df_melt["custom_name"] == name2]["value"].dropna().tolist(),
+                )
+            df_list.append(
+                [
+                    name1,
+                    np.where(df_melt["custom_name"].unique() == name1)[0][0],
+                    name2,
+                    np.where(df_melt["custom_name"].unique() == name2)[0][0],
+                    df_melt[df_melt["custom_name"] == name1]["value"].dropna().median(),
+                    df_melt[df_melt["custom_name"] == name1]["value"].dropna().mean(),
+                    df_melt[df_melt["custom_name"] == name2]["value"].dropna().median(),
+                    df_melt[df_melt["custom_name"] == name2]["value"].dropna().mean(),
+                    stat,
+                    p,
+                    # "ns" if p >= 0.05 else "YES",
+                    "ns"
+                    if p >= 0.05
+                    else "*"
+                    if p >= 0.01
+                    else "**"
+                    if p >= 0.001
+                    else "***",
+                ]
+            )
+        from st_aggrid import (
+            GridOptionsBuilder,
+            AgGrid,
+            GridUpdateMode,
+            DataReturnMode,
+            JsCode,
+        )
 
-    gridOptions = gb.build()
-    # ag_dict = {"rowSelection": "multiple"}
-    st.write(
-        "Select the p-values you want to add to the plot (only works when the plot is not split into subplots)"
-    )
-    manually_set_p_height = st.checkbox(
-        "Manually set p-value height", value=False, key="manually_set_p_height"
-    )
-    if manually_set_p_height:
+        ag_df = pd.DataFrame(
+            df_list,
+            columns=[
+                "Group 1",
+                "I1",
+                "Group 2",
+                "I2",
+                "Median 1",
+                "Mean 1",
+                "Median 2",
+                "Mean 2",
+                "Statistic",
+                "P-Value",
+                "Significant",
+            ],
+        )
+        ag_df["Level"] = 1
+        gb = GridOptionsBuilder.from_dataframe(ag_df)
+
+        gb.configure_selection("multiple", use_checkbox=True)
+        gb.configure_column("Level", editable=True)
+
+        gridOptions = gb.build()
+        # ag_dict = {"rowSelection": "multiple"}
         st.write(
-            "Edit the 'Level' column to change the height of the p-value shown (By double clicking and pressing Enter to accept)."
+            "Select the p-values you want to add to the plot (only works when the plot is not split into subplots)"
         )
-    x = AgGrid(ag_df, gridOptions=gridOptions, columns_auto_size_mode="FIT_CONTENTS")
-    p_to_add = []
-    for i in x.selected_rows:
-        p_to_add.append([i["I1"], i["I2"], i["Significant"], i["Level"]])
-    # st.write(p_to_add)
+        manually_set_p_height = st.checkbox(
+            "Manually set p-value height", value=False, key="manually_set_p_height"
+        )
+        if manually_set_p_height:
+            st.write(
+                "Edit the 'Level' column to change the height of the p-value shown (By double clicking and pressing Enter to accept)."
+            )
+        x = AgGrid(ag_df, gridOptions=gridOptions, columns_auto_size_mode="FIT_CONTENTS")
+        p_to_add = []
+        for i in x.selected_rows:
+            p_to_add.append([i["I1"], i["I2"], i["Significant"], i["Level"]])
+        # st.write(p_to_add)
 
-    add_p(fig, p_to_add, manually_set_p_height)
+        add_p(fig, p_to_add, manually_set_p_height)
     st_figure.plotly_chart(fig, use_container_width=True, theme=None)
     with st.expander("DataFrame"):
         df_to_show = (
@@ -829,18 +837,20 @@ def boxplot(
         fig.add_hline(y=ref_val)
     if annotate:
         ann = []
+
+        # st.write(df_melt)
         for i, val in enumerate(
             list(
                 df_melt.groupby(groupby, sort=False, as_index=False)
-                .agg({"value": "mean"})
-                .round(2)["value"]
+                .agg({y: 'mean' if annotate == 'Mean' else 'median'})
+                .round(2)[y]
             )
         ):
             ann.append(
                 dict(
                     x=i,
                     y=1.05,
-                    text=f"{val:.2}",
+                    text=f"{val:.2e}"  if annotate_format=='Scientific' else f"{val:,.2f}" ,
                     showarrow=False,
                     xref="x",
                     yref="paper",
