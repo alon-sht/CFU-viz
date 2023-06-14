@@ -16,7 +16,7 @@ from st_aggrid import (
     DataReturnMode,
     JsCode,
 )
-pio.templates.default = "plotly"
+pio.templates.default = "plotly_white"
 
 
 # %%
@@ -66,7 +66,7 @@ default_dict = {
     "log": True,
     "remove_zero": False,
     "start_at_one": False,
-    "font_size": 14,
+    "font_size": 16,
     "xlabels": True,
     "ref_line": False,
     "manually_sort_values": False,
@@ -697,9 +697,14 @@ def st_plot_section():
     st_figure.markdown("---")
 
     st_figure.subheader("CFU Plot")
+    exp_container = st_figure.container()
     # Plot
     fig = boxplot(df_melt, "value", y_label="CFU")
     fig.update_layout(margin=dict(b=140))
+    fig.update_layout({
+        'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+        'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+        })
     # st.write(fig.to_dict()["data"])
 
     import io
@@ -715,7 +720,7 @@ def st_plot_section():
     stat_bool = st.checkbox("Show Statistic Test Results")
     if stat_bool:
         p_to_add,manually_set_p_height = statistics(df_melt,'value')
-        add_p(fig, p_to_add, manually_set_p_height)
+        add_p(fig, p_to_add, manually_set_p_height,exp_container)
     st_figure.plotly_chart(fig, use_container_width=True, theme=None)
     show_df(df_melt,'value')
     # st.write(df_melt)
@@ -1350,42 +1355,61 @@ def apply_uploaded_settings(json_settings):
         )
 
 
-def add_p(fig, array_cols, manually_set_p_height):
-    h = 0.98
-    # test = st.sidebar.checkbox("Test")
-    # st.write(len(array_cols))
-    cont=st.sidebar.columns(len(array_cols))
-    i=-1
-    for [ind1, ind2, symbol, level] in array_cols:
-        i+=1
-        h += 0.04
+def add_p(fig, array_cols, manually_set_p_height,container = st.container()):
+    # test = container.checkbox("Test new UI for height of P value")
+    # from streamlit_vertical_slider import vertical_slider
+    # cont=container.columns(len(array_cols) if len(array_cols)>0 else 1)
+
+    h0 = 1.02
+    hdif = 0.04
+    for z,[ind1, ind2, symbol, level] in enumerate(array_cols):
+
         if manually_set_p_height:
-            # if test:
-            #     from streamlit_vertical_slider import vertical_slider
-            #     # for i in array_cols:
-            #         #verticle slider to set height
-            #     with cont[i]:
-            #         level = vertical_slider( key = f"vs_{ind1}_{ind2}",
-            #             default_value=1, 
-            #             step=1, 
-            #             min_value=-10, 
-            #             max_value=10,)
+            z = float(level)
+        #     if test:
                 
+        #         # for i in array_cols:
+        # #             #verticle slider to set height
+        #             with cont[int(z)]:
+        #                 z = vertical_slider( key = f"vs_{ind1}_{ind2}",
+        #                     default_value=z, 
+        #                     step=0.5, 
+        #                     min_value=-10, 
+        #                     max_value=5,)
+        #                 st.write(f"{ind1}_vs_{ind2}")
+        #     else:
+        #         level1 = level
             
-            h = 1 + (0.04 * float(level))
+        #     h = 1 + (0.04 * float(level1 if level1 else level))
         fig.add_shape(
             type="line",
             yref="paper",
             x0=ind1+0.02,
-            y0=h,
+            y0=h0+z*hdif,
             x1=ind2-0.02,
-            y1=h,
+            y1=h0+z*hdif,
+        )
+        fig.add_shape(
+            type="line",
+            yref="paper",
+            x0=ind1+0.02,
+            y0=h0+z*hdif,
+            x1=ind1+0.02,
+            y1=h0+z*hdif-0.01,
+        )
+        fig.add_shape(
+            type="line",
+            yref="paper",
+            x0=ind2-0.02,
+            y0=h0+z*hdif,
+            x1=ind2-0.02,
+            y1=h0+z*hdif-0.01,
         )
 
         fig.add_annotation(
             x=(ind1 + ind2) / 2,
             text=symbol,
-            y=h + 0.04,
+            y=h0+z*hdif + 0.04,
             yref="paper",
             font_size=12,
             showarrow=False,
