@@ -576,6 +576,100 @@ def add_plot_settings_to_sidebar():
         key="boxmean",
     )
 
+def statistics(df,value_to_use):
+        statistic = st.selectbox(
+            "Choose Statistic Test", options=["Mann Whitney U", "Kruskal Wallis"]
+        )
+
+        from itertools import combinations
+
+        df_list = []
+        for i, (name1, name2) in enumerate(
+            combinations(df["custom_name"].unique(), 2)
+        ):
+            if statistic == "Mann Whitney U":
+                stat, p = mannwhitneyu(
+                    df[df["custom_name"] == name1][value_to_use].dropna().tolist(),
+                    df[df["custom_name"] == name2][value_to_use].dropna().tolist(),
+                )
+            elif statistic == "Kruskal Wallis":
+                stat, p = kruskal(
+                    df[df["custom_name"] == name1][value_to_use].dropna().tolist(),
+                    df[df["custom_name"] == name2][value_to_use].dropna().tolist(),
+                )
+            df_list.append(
+                [
+                    name1,
+                    name2,
+                    np.where(df["custom_name"].unique() == name1)[0][0],
+                    np.where(df["custom_name"].unique() == name2)[0][0],
+                    df[df["custom_name"] == name1][value_to_use].dropna().median(),
+                    df[df["custom_name"] == name1][value_to_use].dropna().mean(),
+                    df[df["custom_name"] == name2][value_to_use].dropna().median(),
+                    df[df["custom_name"] == name2][value_to_use].dropna().mean(),
+                    stat,
+                    p,
+                    # "ns" if p >= 0.05 else "YES",
+                    "ns"
+                    if p >= 0.05
+                    else "*"
+                    if p >= 0.01
+                    else "**"
+                    if p >= 0.001
+                    else "***",
+                ]
+            )
+
+
+        ag_df = pd.DataFrame(
+            df_list,
+            columns=[
+                "Group 1",
+                "Group 2",
+                "I1",
+                "I2",
+                "Median 1",
+                "Mean 1",
+                "Median 2",
+                "Mean 2",
+                "Statistic",
+                "P-Value",
+                "Significant",
+            ],
+        )
+        ag_df["Level"] = 1
+        #move 'significant' column to the front
+        ag_df = ag_df[["Significant"] + [col for col in ag_df.columns if col != "Significant"]]
+        gb = GridOptionsBuilder.from_dataframe(ag_df)
+
+        gb.configure_selection("multiple", use_checkbox=True)
+        gb.configure_column("Level", editable=True)
+
+        gridOptions = gb.build()
+        
+        st.write(
+            "Select the p-values you want to add to the plot (only works when the plot is not split into subplots)"
+        )
+        manually_set_p_height = st.checkbox(
+            "Manually set p-value height", value=False, key="manually_set_p_height"
+        )
+        if manually_set_p_height:
+            st.write(
+                "Edit the 'Level' column to change the height of the p-value shown (By double clicking and pressing Enter to accept)."
+            )
+        df_out = AgGrid(ag_df, gridOptions=gridOptions, columns_auto_size_mode="FIT_CONTENTS")
+        st.download_button(
+                    "Download statistics output as excel",
+                    data=to_excel(df_out.data),
+                    file_name="statistics_output.xlsx",
+                    mime="application/vnd.ms-excel",
+                )
+        p_to_add = []
+        for i in df_out.selected_rows:
+            p_to_add.append([i["I1"], i["I2"], i["Significant"], i["Level"]])
+        return p_to_add,manually_set_p_height
+
+
 def show_df(df,value_to_use):
         assert 'custom_name' in df.columns, "custom_name column is missing"
         with st.expander("DataFrame"):
@@ -620,96 +714,7 @@ def st_plot_section():
     )
     stat_bool = st.checkbox("Show Statistic Test Results")
     if stat_bool:
-        statistic = st.selectbox(
-            "Choose Statistic Test", options=["Mann Whitney U", "Kruskal Wallis"]
-        )
-
-        from itertools import combinations
-
-        df_list = []
-        for i, (name1, name2) in enumerate(
-            combinations(df_melt["custom_name"].unique(), 2)
-        ):
-            if statistic == "Mann Whitney U":
-                stat, p = mannwhitneyu(
-                    df_melt[df_melt["custom_name"] == name1]["value"].dropna().tolist(),
-                    df_melt[df_melt["custom_name"] == name2]["value"].dropna().tolist(),
-                )
-            elif statistic == "Kruskal Wallis":
-                stat, p = kruskal(
-                    df_melt[df_melt["custom_name"] == name1]["value"].dropna().tolist(),
-                    df_melt[df_melt["custom_name"] == name2]["value"].dropna().tolist(),
-                )
-            df_list.append(
-                [
-                    name1,
-                    np.where(df_melt["custom_name"].unique() == name1)[0][0],
-                    name2,
-                    np.where(df_melt["custom_name"].unique() == name2)[0][0],
-                    df_melt[df_melt["custom_name"] == name1]["value"].dropna().median(),
-                    df_melt[df_melt["custom_name"] == name1]["value"].dropna().mean(),
-                    df_melt[df_melt["custom_name"] == name2]["value"].dropna().median(),
-                    df_melt[df_melt["custom_name"] == name2]["value"].dropna().mean(),
-                    stat,
-                    p,
-                    # "ns" if p >= 0.05 else "YES",
-                    "ns"
-                    if p >= 0.05
-                    else "*"
-                    if p >= 0.01
-                    else "**"
-                    if p >= 0.001
-                    else "***",
-                ]
-            )
-
-
-        ag_df = pd.DataFrame(
-            df_list,
-            columns=[
-                "Group 1",
-                "I1",
-                "Group 2",
-                "I2",
-                "Median 1",
-                "Mean 1",
-                "Median 2",
-                "Mean 2",
-                "Statistic",
-                "P-Value",
-                "Significant",
-            ],
-        )
-        ag_df["Level"] = 1
-        gb = GridOptionsBuilder.from_dataframe(ag_df)
-
-        gb.configure_selection("multiple", use_checkbox=True)
-        gb.configure_column("Level", editable=True)
-
-        gridOptions = gb.build()
-        # ag_dict = {"rowSelection": "multiple"}
-        st.write(
-            "Select the p-values you want to add to the plot (only works when the plot is not split into subplots)"
-        )
-        manually_set_p_height = st.checkbox(
-            "Manually set p-value height", value=False, key="manually_set_p_height"
-        )
-        if manually_set_p_height:
-            st.write(
-                "Edit the 'Level' column to change the height of the p-value shown (By double clicking and pressing Enter to accept)."
-            )
-        x = AgGrid(ag_df, gridOptions=gridOptions, columns_auto_size_mode="FIT_CONTENTS")
-        st.download_button(
-                    "Download statistics output as excel",
-                    data=to_excel(x.data),
-                    file_name="statistics_output.xlsx",
-                    mime="application/vnd.ms-excel",
-                )
-        p_to_add = []
-        for i in x.selected_rows:
-            p_to_add.append([i["I1"], i["I2"], i["Significant"], i["Level"]])
-        # st.write(p_to_add)
-
+        p_to_add,manually_set_p_height = statistics(df_melt,'value')
         add_p(fig, p_to_add, manually_set_p_height)
     st_figure.plotly_chart(fig, use_container_width=True, theme=None)
     show_df(df_melt,'value')
@@ -1064,6 +1069,10 @@ def percent_survaviability_plot_section():
     # Plot % out of reference plot
     fig = boxplot(df_melt, "value_norm", ref_val=100, y_label="% Survivability")
     st_survivability.plotly_chart(fig, use_container_width=True, theme=None)
+    stat_bool = st.checkbox("Show Statistic Test Results")
+    if stat_bool:
+        p_to_add,manually_set_p_height = statistics(df_melt,'value_norm')
+        add_p(fig, p_to_add, manually_set_p_height)
     show_df(df_melt,'value_norm')
 
 def ref_excluded_plot_section():
