@@ -612,11 +612,11 @@ def statistics(df,value_to_use):
                     # "ns" if p >= 0.05 else "YES",
                     "ns"
                     if p >= 0.05
-                    else "*"
+                    else "★"
                     if p >= 0.01
-                    else "**"
+                    else "★★"
                     if p >= 0.001
-                    else "***",
+                    else "★★★",
                 ]
             )
 
@@ -1351,28 +1351,47 @@ def apply_uploaded_settings(json_settings):
 
 
 def add_p(fig, array_cols, manually_set_p_height):
-    h = 1.00
+    h = 0.98
+    # test = st.sidebar.checkbox("Test")
+    # st.write(len(array_cols))
+    cont=st.sidebar.columns(len(array_cols))
+    i=-1
     for [ind1, ind2, symbol, level] in array_cols:
+        i+=1
         h += 0.04
         if manually_set_p_height:
-            h = 1 + (0.06 * int(level))
+            # if test:
+            #     from streamlit_vertical_slider import vertical_slider
+            #     # for i in array_cols:
+            #         #verticle slider to set height
+            #     with cont[i]:
+            #         level = vertical_slider( key = f"vs_{ind1}_{ind2}",
+            #             default_value=1, 
+            #             step=1, 
+            #             min_value=-10, 
+            #             max_value=10,)
+                
+            
+            h = 1 + (0.04 * float(level))
         fig.add_shape(
             type="line",
             yref="paper",
-            x0=ind1,
+            x0=ind1+0.02,
             y0=h,
-            x1=ind2,
+            x1=ind2-0.02,
             y1=h,
         )
 
         fig.add_annotation(
             x=(ind1 + ind2) / 2,
             text=symbol,
-            y=h + 0.06,
+            y=h + 0.04,
             yref="paper",
             font_size=12,
             showarrow=False,
         )
+        
+
 
 
 def main():
