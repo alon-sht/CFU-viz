@@ -1068,11 +1068,12 @@ def percent_survaviability_plot_section():
 
     # Plot % out of reference plot
     fig = boxplot(df_melt, "value_norm", ref_val=100, y_label="% Survivability")
-    st_survivability.plotly_chart(fig, use_container_width=True, theme=None)
+    
     stat_bool = st.checkbox("Show Statistic Test Results")
     if stat_bool:
         p_to_add,manually_set_p_height = statistics(df_melt,'value_norm')
         add_p(fig, p_to_add, manually_set_p_height)
+    st_survivability.plotly_chart(fig, use_container_width=True, theme=None)
     show_df(df_melt,'value_norm')
 
 def ref_excluded_plot_section():
@@ -1096,7 +1097,13 @@ def ref_excluded_plot_section():
         force_disable_log=True,
         force_disable_axis_start_at_one=True,
     )
+    stat_bool = st.checkbox("Show Statistic Test Results")
+    if stat_bool:
+        p_to_add,manually_set_p_height = statistics(df_melt,data)
+        add_p(fig2, p_to_add, manually_set_p_height)
     st_delta_plot.plotly_chart(fig2, use_container_width=True, theme=None)
+    show_df(df_melt,data)
+    
 
 
 def auto_ref_excluded_plot_section():
@@ -1119,21 +1126,29 @@ def auto_ref_excluded_plot_section():
         force_disable_log=True,
         force_disable_axis_start_at_one=True,
     )
-    fig4 = barplot(
-        df_melt,
-        data,
-        y_label="Log Delta",
-        ref_val=0,
-        force_disable_log=True,
-        force_disable_axis_start_at_one=True,
-    )
+    # fig4 = barplot(
+    #     df_melt,
+    #     data,
+    #     y_label="Log Delta",
+    #     ref_val=0,
+    #     force_disable_log=True,
+    #     force_disable_axis_start_at_one=True,
+    # )
     delta_auto_set = st_auto_delta_plot.checkbox(
         "I consulted Alon and I want to see this plot"
     )
     if delta_auto_set:
+        
+        stat_bool = st.checkbox("Show Statistic Test Results")
+        if stat_bool:
+            p_to_add,manually_set_p_height = statistics(df_melt,data)
+            add_p(fig3, p_to_add, manually_set_p_height)
         st_auto_delta_plot.plotly_chart(fig3, use_container_width=True, theme=None)
-        st_auto_delta_plot.subheader("Bar Chart Using Only Mean Value")
-        st_auto_delta_plot.plotly_chart(fig4, use_container_width=True, theme=None)
+        show_df(df_melt,data)
+        # st_auto_delta_plot.subheader("Bar Chart Using Only Mean Value")
+        # st_auto_delta_plot.plotly_chart(fig4, use_container_width=True, theme=None)
+
+    
 
 
 def auto_assign_ref_sample():
