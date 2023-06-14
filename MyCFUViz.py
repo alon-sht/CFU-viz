@@ -554,7 +554,7 @@ def add_plot_settings_to_sidebar():
     annotate = plot_settings.selectbox(
         label="Show Annotations On Plot",
         key="annotate",
-        options=[None, "Mean", "Median"],
+        options=[None, "Mean", "Median", "Standart Deviation", "Standart Error Mean"],
         help=annotate_help,
     )
     annotate_format_help = "Shows the selected metric (mean/median etc) in the top portion of the chart.\n\nAnnotations currently don't work together with 'facet'."
@@ -837,12 +837,21 @@ def boxplot(
         fig.add_hline(y=ref_val)
     if annotate:
         ann = []
-
+        if annotate == "Mean":
+          how = 'mean'
+        elif annotate == "Median":
+          how = 'median'
+        elif annotate == "Standart Deviation":
+          how = 'std'
+        elif annotate == "Standart Error Mean":
+          how = 'sem'
+        else:
+          how = 'mean'
         # st.write(df_melt)
         for i, val in enumerate(
             list(
                 df_melt.groupby(groupby, sort=False, as_index=False)
-                .agg({y: 'mean' if annotate == 'Mean' else 'median'})
+                .agg({y: how})
                 .round(2)[y]
             )
         ):
