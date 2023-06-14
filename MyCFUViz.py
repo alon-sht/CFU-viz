@@ -16,7 +16,9 @@ from st_aggrid import (
     DataReturnMode,
     JsCode,
 )
-pio.templates.default = "plotly_white"
+from streamlit_toggle import st_toggle_switch
+from streamlit_sortables import sort_items
+pio.templates.default = "plotly"
 
 
 # %%
@@ -152,9 +154,9 @@ def filter_data():
         df_filtered[y_variables] = df_filtered[y_variables].replace(0, np.nan)
     elif remove_zero == "Don't Remove Zero Values":
         df_filtered[y_variables] = df_filtered[y_variables].replace(0, 1.00001)
-    if manually_sort_values:
+    # if manually_sort_values:
         # df_filtered['TestedAgentDilution']=df_filtered['TestedAgentDilution'].str.extract('(\d+)', expand=False).astype('float').astype('Int64')
-        df_filtered = df_filtered.sort_values(by=sort_by, ascending=sort_by_ascending)
+    df_filtered = df_filtered.sort_values(by=sort_by, ascending=sort_by_ascending)
     df_filtered["custom_name"] = df_filtered[names].astype(str).agg("/".join, axis=1)
 
     df_melt = pd.melt(
@@ -268,90 +270,26 @@ def get_filters_and_add_widgets_to_sidebar(df):
 
 
 def add_df_sort_settings_to_sidebar():
-    global sort_by, manually_sort_values, sort_by_ascending
+    global sort_by, sort_by_ascending
 
     df_sort_st = st.sidebar.expander("Data Sort Settings")
     df_sort_st.subheader("Data Sort Settings")
-    updated_default_dict = default_dict
-    multi_options = [None] + cols
 
-    manually_sort_values = df_sort_st.checkbox(
-        label="Manually Sort Values",
-        value=updated_default_dict["manually_sort_values"],
-        key="manually_sort_values",
-    )
-    df_sort_st.markdown(
-        "Pick up to five parameters to sort by. Note the order and whether they are in ascending or descending order."
-    )
-    df_sort_st.markdown("---")
+    sort_by = []
+    sort_by_ascending = []
+    st.write("To sort the data, select the columns to sort by")
+    sort_by_cols = df_sort_st.multiselect("Columns to sort by", options=cols, default=[], key = 'sort_by_cols')
+    if sort_by_cols:
+        df_sort_st.write("Reorder categories by dragging and dropping:")
+        with df_sort_st:
+            sort_by = sort_items(sort_by_cols)
+            st.session_state.sort_by = sort_by
+            sort_by_ascending = []
+            for i in sort_by:
+                test_default = st.session_state[f"sort_asc_{i}"] if f"sort_asc_{i}" in st.session_state else False
+                asc = st_toggle_switch(f"Sort {i} Ascending", default_value=True, key=f"sort_asc_{i}",label_after = False)
+                sort_by_ascending.append(asc if asc else False)
 
-    if "Experiment" in multi_options:
-        val1 = multi_options.index("Experiment")
-    else:
-        val1 = 0
-    sort1 = df_sort_st.selectbox(
-        "Sort By (1)", options=multi_options, index=val1, key="sort1"
-    )
-    sort1_ascending = df_sort_st.checkbox(
-        "Ascending? (1)", value=False, key="sort1direction"
-    )
-    df_sort_st.markdown("---")
-    if "TimePoint" in multi_options:
-        val2 = multi_options.index("TimePoint")
-    else:
-        val2 = 0
-    sort2 = df_sort_st.selectbox(
-        "Sort By (2)", options=multi_options, index=val2, key="sort2"
-    )
-    sort2_ascending = df_sort_st.checkbox(
-        "Ascending? (2)", value=False, key="sort2direction"
-    )
-    df_sort_st.markdown("---")
-    if "TestedPhase" in multi_options:
-        val3 = multi_options.index("TestedPhase")
-    else:
-        val3 = 0
-    sort3 = df_sort_st.selectbox(
-        "Sort By (3)", options=multi_options, index=val3, key="sort3"
-    )
-    sort3_ascending = df_sort_st.checkbox(
-        "Ascending? (3)", value=False, key="sort3direction"
-    )
-    df_sort_st.markdown("---")
-    if "TestedAgent" in multi_options:
-        val4 = multi_options.index("TestedAgent")
-    else:
-        val4 = 0
-    sort4 = df_sort_st.selectbox(
-        "Sort By (4)", options=multi_options, index=val4, key="sort4"
-    )
-    sort4_ascending = df_sort_st.checkbox(
-        "Ascending? (4)", value=False, key="sort4direction"
-    )
-    df_sort_st.markdown("---")
-    if "TestedAgentDilution" in multi_options:
-        val5 = multi_options.index("TestedAgentDilution")
-    else:
-        val5 = 0
-    sort5 = df_sort_st.selectbox(
-        "Sort By (5)", options=multi_options, index=val5, key="sort5"
-    )
-    sort5_ascending = df_sort_st.checkbox(
-        "Ascending? (5)", value=False, key="sort5direction"
-    )
-
-    sort_by = [sort1, sort2, sort3, sort4, sort5]
-    sort_by = [x for x in sort_by if x]
-    # print(sort_by)
-    sort_by_ascending = [
-        sort1_ascending,
-        sort2_ascending,
-        sort3_ascending,
-        sort4_ascending,
-        sort5_ascending,
-    ]
-    sort_by_ascending = [sort_by_ascending[i] for i, x in enumerate(sort_by) if x]
-    # print(sort_by_ascending)
 
 
 def add_plot_settings_to_sidebar():
@@ -365,6 +303,37 @@ def add_plot_settings_to_sidebar():
     plot_settings.subheader("Plot Widgets")
     # plot_settings.button("Reset Defaults",on_click=reset_all_defaults)
     multi_options = [None] + cols
+    temp_opts = [
+        "SampleID/PlateID",
+        "Experiment",
+        "Bacteria",
+        "SampleOrigin",
+        "TestedPhase",
+        "TimePoint",
+        "TestedAgent",
+        "TestedAgentDilution",
+        "Plate",
+    ]
+    agg_opts = [
+        opt for opt in multi_options if opt in cols if len(df[opt].drop_duplicates()) > 1
+    ]
+    if len(agg_opts) == 0:
+        agg_opts = ["Average_by"]
+    names_help = f"""Choose names of clumns the aggregate to represent a sample. \\
+              See following example, where two samples have the same TreatmentName but other parameters are different\\
+              ID | ExpID | TreatmentName \\
+              M1 | RD001 | WetMatrix \\
+              M2 | RD002 | WetMatrix \\
+              If you choose all three columns, you will have two distinct names:\\
+              'M1/RD001/WetMatrix' & 'M2/RD002/WetMatrix'. \\
+              But if you only use TreatmentName column you will get one common name for both samples - 'WetMatrix' - then these samples will be averaged into one box."""
+    names = plot_settings.multiselect(
+        label="Name Samples By Chosen Columns",
+        options=cols,
+        default=agg_opts,
+        key="names",
+        help=names_help,
+    )
     color_help = "Choose a column from the data to color the plots by."
     color = plot_settings.selectbox(
         label="Color",
@@ -407,41 +376,13 @@ def add_plot_settings_to_sidebar():
         value=int(updated_default_dict["font_size"]),
         key="font_size",
     )
-    temp_opts = [
-        "SampleID/PlateID",
-        "Experiment",
-        "Bacteria",
-        "SampleOrigin",
-        "TestedPhase",
-        "TimePoint",
-        "TestedAgent",
-        "TestedAgentDilution",
-        "Plate",
-    ]
+
     # temp_opts=cols
     # Choose columns by which to aggregate samples
     # Remove columns that only have one value
-    agg_opts = [
-        opt for opt in temp_opts if opt in cols if len(df[opt].drop_duplicates()) > 1
-    ]
-    if len(agg_opts) == 0:
-        agg_opts = ["Average_by"]
 
-    names_help = f"""Choose names of clumns the aggregate to represent a sample. \\
-              See following example, where two samples have the same TreatmentName but other parameters are different\\
-              ID | ExpID | TreatmentName \\
-              M1 | RD001 | WetMatrix \\
-              M2 | RD002 | WetMatrix \\
-              If you choose all three columns, you will have two distinct names:\\
-              'M1/RD001/WetMatrix' & 'M2/RD002/WetMatrix'. \\
-              But if you only use TreatmentName column you will get one common name for both samples - 'WetMatrix' - then these samples will be averaged into one box."""
-    names = plot_settings.multiselect(
-        label="Name Samples By Chosen Columns",
-        options=cols,
-        default=agg_opts,
-        key="names",
-        help=names_help,
-    )
+
+
     boxwidth_help = "Relative space that the box takes - If the value is 1 each box will be connected to the box next to it, decreasing the value decreases the box width and increases the distance between adjacent boxes"
     boxwidth = plot_settings.slider(
         label="Box Width",
@@ -452,6 +393,34 @@ def add_plot_settings_to_sidebar():
         key="boxwidth",
         help=boxwidth_help,
     )
+
+    points_help = "Shows sample points on the plot next to the boxes. \n \
+              \nTip: If points and plots overlap, you can play with the Box Width slider."
+    points = plot_settings.checkbox(
+        label="Show Points",
+        key="show_points",
+        value=updated_default_dict["points"],
+        help=points_help,
+    )
+    xlabels = plot_settings.checkbox(
+        label="Show X axis labels",
+        key="xlabels",
+        value=updated_default_dict["xlabels"],
+        help="Show or hide X axis labels",
+    )
+    log = plot_settings.checkbox(
+        label="Log Y Axis",
+        key="logy",
+        value=updated_default_dict["log"],
+        help="When selected, Y axis is in log scale.",
+    )
+    start_at_one = plot_settings.checkbox(
+        label="Start Axis at 1",
+        key="start_at_one",
+        value=updated_default_dict["start_at_one"],
+        help="When selected, Y axis starts at 1",
+    )  # disabled=True)
+    # remove_zero=plot_settings.checkbox(label='Remove Zero Values',key='remove_zero', value=updated_default_dict['remove_zero'])
     plot_settings.markdown("---")
     manually_set_ylim_help = (
         "Select this checkbox to manually set the limits of the Y axis."
@@ -485,35 +454,9 @@ def add_plot_settings_to_sidebar():
             "*If the chosen value is x, positive are 10^x, while negative x values are -10^x"
         )
     # ylim_bottom=plot_settings.slider(label='Manually set ylim (min)',min_value=-20,max_value=20,value=0)
-    ylim_values = plot_settings.markdown(f"")
+    ylim_values = plot_settings.empty()
     plot_settings.markdown("---")
-    points_help = "Shows sample points on the plot next to the boxes. \n \
-              \nTip: If points and plots overlap, you can play with the Box Width slider."
-    points = plot_settings.checkbox(
-        label="Show Points",
-        key="show_points",
-        value=updated_default_dict["points"],
-        help=points_help,
-    )
-    xlabels = plot_settings.checkbox(
-        label="Show X axis labels",
-        key="xlabels",
-        value=updated_default_dict["xlabels"],
-        help="Show or hide X axis labels",
-    )
-    log = plot_settings.checkbox(
-        label="Log Y Axis",
-        key="logy",
-        value=updated_default_dict["log"],
-        help="When selected, Y axis is in log scale.",
-    )
-    start_at_one = plot_settings.checkbox(
-        label="Start Axis at 1",
-        key="start_at_one",
-        value=updated_default_dict["start_at_one"],
-        help="When selected, Y axis starts at 1",
-    )  # disabled=True)
-    # remove_zero=plot_settings.checkbox(label='Remove Zero Values',key='remove_zero', value=updated_default_dict['remove_zero'])
+    
     remove_zero_help = "'Remove Zero Values Only When Not All Counts Are Zero' removes zeros only when some of the counts of the same sample equal to zero."
     remove_zero = plot_settings.selectbox(
         label="Remove Zero Values",
@@ -564,12 +507,15 @@ def add_plot_settings_to_sidebar():
         help=annotate_help,
     )
     annotate_format_help = "Shows the selected metric (mean/median etc) in the top portion of the chart.\n\nAnnotations currently don't work together with 'facet'."
-    annotate_format = plot_settings.selectbox(
-        label="Show Annotations On Plot",
-        key="annotate_format",
-        options=["Scientific", "Decimal"],
-        help=annotate_format_help,
-    )
+    if annotate:
+        _,col = plot_settings.columns([1,9])
+        annotate_format = col.radio(
+            label="Annotation Format",
+            key="annotate_format",
+            options=["Scientific", "Decimal"],
+            help=annotate_format_help,
+            horizontal=True,
+        )
     boxmean = plot_settings.selectbox(
         "Show on Box",
         options=["Mean and Median", "Mean, Median and SD", "Only Median"],
@@ -701,10 +647,7 @@ def st_plot_section():
     # Plot
     fig = boxplot(df_melt, "value", y_label="CFU")
     fig.update_layout(margin=dict(b=140))
-    fig.update_layout({
-        'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-        'paper_bgcolor': 'rgba(0, 0, 0, 0)',
-        })
+    fig.update_layout(bg_dict)
     # st.write(fig.to_dict()["data"])
 
     import io
@@ -1416,6 +1359,17 @@ def add_p(fig, array_cols, manually_set_p_height,container = st.container()):
         )
         
 
+def plotly_white_theme():
+    global bg_dict
+    plotly_white = st.sidebar.checkbox("Use White Plot Background", value=False, key="plotly_white_theme")
+    if plotly_white:
+        pio.templates.default = "plotly_white"
+        bg_dict = {
+        'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+        'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+        }
+    else:
+        bg_dict = {}
 
 
 def main():
@@ -1442,6 +1396,7 @@ def main():
         auto_assign_ref_sample()
         save_and_upload_settings()
         st_data_section()
+        plotly_white_theme()
 
         st.markdown("---")
         st.subheader("Figures")
@@ -1453,6 +1408,7 @@ def main():
                 "Delta From Reference",
                 "Delta from Auto-Set Reference",
             ],
+            horizontal=True,
         )
         if choose_plot == "Regular CFU Plot":
             st_plot_section()
