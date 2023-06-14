@@ -9,7 +9,13 @@ from PIL import Image
 import warnings
 import plotly.io as pio
 from scipy.stats import mannwhitneyu, wilcoxon, kruskal
-
+from st_aggrid import (
+    GridOptionsBuilder,
+    AgGrid,
+    GridUpdateMode,
+    DataReturnMode,
+    JsCode,
+)
 pio.templates.default = "plotly"
 
 
@@ -570,9 +576,25 @@ def add_plot_settings_to_sidebar():
         key="boxmean",
     )
 
-
+def show_df(df,value_to_use):
+        assert 'custom_name' in df.columns, "custom_name column is missing"
+        with st.expander("DataFrame"):
+            df_to_show = (
+                df.groupby("custom_name").agg({value_to_use: ["mean","median", "std","sem","min",'max','count']}).reset_index()
+            )
+            # remove multiindex for column names by merging them
+            df_to_show.columns = df_to_show.columns.map("_".join)
+            st.write(df_to_show)
 def add_custom_name_column():
     df_filtered["custom_name"] = df_filtered[names].astype(str).agg("/".join, axis=1)
+import io
+def to_excel(df) -> bytes:
+    output = io.BytesIO()
+    writer = pd.ExcelWriter(output, engine="xlsxwriter")
+    df.to_excel(writer, sheet_name="Sheet1")
+    writer.close()
+    processed_data = output.getvalue()
+    return processed_data
 
 
 def st_plot_section():
@@ -640,13 +662,7 @@ def st_plot_section():
                     else "***",
                 ]
             )
-        from st_aggrid import (
-            GridOptionsBuilder,
-            AgGrid,
-            GridUpdateMode,
-            DataReturnMode,
-            JsCode,
-        )
+
 
         ag_df = pd.DataFrame(
             df_list,
@@ -683,6 +699,12 @@ def st_plot_section():
                 "Edit the 'Level' column to change the height of the p-value shown (By double clicking and pressing Enter to accept)."
             )
         x = AgGrid(ag_df, gridOptions=gridOptions, columns_auto_size_mode="FIT_CONTENTS")
+        st.download_button(
+                    "Download statistics output as excel",
+                    data=to_excel(x.data),
+                    file_name="statistics_output.xlsx",
+                    mime="application/vnd.ms-excel",
+                )
         p_to_add = []
         for i in x.selected_rows:
             p_to_add.append([i["I1"], i["I2"], i["Significant"], i["Level"]])
@@ -690,13 +712,9 @@ def st_plot_section():
 
         add_p(fig, p_to_add, manually_set_p_height)
     st_figure.plotly_chart(fig, use_container_width=True, theme=None)
-    with st.expander("DataFrame"):
-        df_to_show = (
-            df_melt.groupby("custom_name").agg({"value": ["mean", "std"]}).reset_index()
-        )
-        # remove multiindex for column names by merging them
-        df_to_show.columns = df_to_show.columns.map("_".join)
-        st.write(df_to_show)
+    show_df(df_melt,'value')
+    # st.write(df_melt)
+        
 
 
 def get_ylim(df, y, force_disable_axis_start_at_one, force_disable_log):
@@ -1046,7 +1064,7 @@ def percent_survaviability_plot_section():
     # Plot % out of reference plot
     fig = boxplot(df_melt, "value_norm", ref_val=100, y_label="% Survivability")
     st_survivability.plotly_chart(fig, use_container_width=True, theme=None)
-
+    show_df(df_melt,'value_norm')
 
 def ref_excluded_plot_section():
     st.markdown("---")
