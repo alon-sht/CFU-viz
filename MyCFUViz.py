@@ -73,6 +73,7 @@ default_dict = {
     "xlabels": True,
     "ref_line": False,
     "manually_sort_values": False,
+    "turn_xlabels": True,
 }
 
 cols_for_reference = ["TestedPhase", "TimePoint", "TestedAgent"]
@@ -158,7 +159,7 @@ def filter_data():
     # if manually_sort_values:
     # df_filtered['TestedAgentDilution']=df_filtered['TestedAgentDilution'].str.extract('(\d+)', expand=False).astype('float').astype('Int64')
     df_filtered = df_filtered.sort_values(by=sort_by, ascending=sort_by_ascending)
-    df_filtered["custom_name"] = df_filtered[names].astype(str).agg("/".join, axis=1)
+    df_filtered["custom_name"] = df_filtered[names].astype(str).agg("|".join, axis=1)
 
     df_melt = pd.melt(
         df_filtered,
@@ -167,7 +168,7 @@ def filter_data():
     )
     update_df_melt_according_to_ref()
 
-    # st.write(df_filtered.astype(str))
+    # st.write(df_melt.astype(str))
 
 
 def update_df_melt_according_to_ref():
@@ -185,26 +186,18 @@ def st_data_section():
     )
 
     if load_data:
-        unfiltered_data = data.checkbox(
-            "Data before applying filters", key="original_data"
+        # unfiltered_data = data.checkbox(
+        #     "Data before applying filters", key="original_data"
+        # )
+        # if unfiltered_data:
+        data.write(df_melt.astype(str))
+        st.download_button(
+            "Download DataFrame",
+            data=to_excel(df_melt),
+            file_name="df.xlsx",
+            mime="application/vnd.ms-excel",
         )
-        if unfiltered_data:
-            data.write(df.astype(str))
-            st.download_button(
-                "Download DF DataFrame",
-                data=to_excel(df),
-                file_name="df.xlsx",
-                mime="application/vnd.ms-excel",
-            )
 
-        else:
-            data.write(df_filtered.astype(str))
-            st.download_button(
-                "Download filtered DataFrame",
-                data=to_excel(df_filtered),
-                file_name="filtered_df.xlsx",
-                mime="application/vnd.ms-excel",
-            )
     # data=st.expander('Raw DataFrame (Click to Show)')
 
 
@@ -318,7 +311,7 @@ def add_df_sort_settings_to_sidebar():
 
 def add_plot_settings_to_sidebar():
     # Adds plot settings widget to sidebar
-    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean, annotate_format  # ,color_palette_list
+    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean, annotate_format, turn_xlabels  # ,color_palette_list
 
     # updated_default_dict=set_values_from_url(default_dict)
     updated_default_dict = default_dict
@@ -432,6 +425,12 @@ def add_plot_settings_to_sidebar():
         key="xlabels",
         value=updated_default_dict["xlabels"],
         help="Show or hide X axis labels",
+    )
+    turn_xlabels = plot_settings.checkbox(
+        label="Turn X axis labels",
+        key="turn_xlabels",
+        value=updated_default_dict["turn_xlabels"],
+        help="Turn X axis labels by 90 degrees and split into multiple rows",
     )
     log = plot_settings.checkbox(
         label="Log Y Axis",
@@ -763,6 +762,11 @@ def boxplot(
         df,
         x="custom_name",
         y=y,
+        # labels={
+        #     "Experiment": True
+        #     # "custom_name": "custom_name".replace("|", "<br>")
+        #     # for i in df["custom_name"].unique()
+        # },
         color=color,
         height=height,
         log_y=logy,
@@ -781,6 +785,7 @@ def boxplot(
         ylim_values.markdown(
             f"Y Limits are {how_to_set_ylim} set to {min_val:.3} and {max_val:.3}"
         )
+    # change x label of each trace to custom_name but replace "|" with line break
 
     fig.update_layout(
         margin={"t": 100},
@@ -801,6 +806,7 @@ def boxplot(
         boxmean_val = None
 
     fig.update_traces(width=boxwidth, boxmean=boxmean_val)
+
     fig.update_xaxes(
         tickangle=90,
         matches=None,
@@ -809,6 +815,17 @@ def boxplot(
         autorange=True,
         showticklabels=xlabels,
     )
+    if turn_xlabels:
+        names = dict(enumerate(df["custom_name"].unique()))
+        for i in names.keys():
+            names[i] = names[i].replace("|", "<br>")
+        names[-1] = "<br>".join(st.session_state["names"])
+        fig.update_xaxes(
+            tickangle=0,
+            tickvals=list(names.keys()),
+            ticktext=list(names.values()),
+        )
+
     if y_label and show_ylabel:
         label = y_label
     else:
@@ -825,18 +842,25 @@ def boxplot(
     else:
         fig.update_traces(boxpoints="outliers")
 
-    hover_plot = px.box(
+    hover_plot = px.bar(
         df,
         x="custom_name",
         y=[y_val] * len(df["custom_name"]),
-        boxmode="overlay",
+        barmode="overlay",
+        # histfunc="avg",
+        # text_auto=".2e",
         hover_data=cols,
         facet_col=facet,
         log_y=log,
         color=color,
     )
-    hover_plot.update_traces(width=boxwidth, opacity=0, showlegend=False)
-    hover_plot.update_layout(yaxis_range=[0, max_val])
+    hover_plot.update_traces(
+        opacity=0,
+        width=boxwidth,
+        showlegend=False,
+        textposition="outside",
+    )  #
+    hover_plot.update_layout(yaxis_range=[0, max_val], uniformtext_minsize=8)
 
     if show_meta_on_hover:
         fig.add_traces(hover_plot.data)
@@ -1386,7 +1410,7 @@ def add_p(fig, array_cols, manually_set_p_height, container=st.container()):
         fig.add_annotation(
             x=(ind1 + ind2) / 2,
             text=symbol,
-            y=h0 + z * hdif + 0.04,
+            y=h0 + z * hdif + hdif * 2,
             yref="paper",
             font_size=12,
             showarrow=False,
