@@ -18,6 +18,7 @@ from st_aggrid import (
 )
 from streamlit_toggle import st_toggle_switch
 from streamlit_sortables import sort_items
+
 pio.templates.default = "plotly"
 
 
@@ -155,7 +156,7 @@ def filter_data():
     elif remove_zero == "Don't Remove Zero Values":
         df_filtered[y_variables] = df_filtered[y_variables].replace(0, 1.00001)
     # if manually_sort_values:
-        # df_filtered['TestedAgentDilution']=df_filtered['TestedAgentDilution'].str.extract('(\d+)', expand=False).astype('float').astype('Int64')
+    # df_filtered['TestedAgentDilution']=df_filtered['TestedAgentDilution'].str.extract('(\d+)', expand=False).astype('float').astype('Int64')
     df_filtered = df_filtered.sort_values(by=sort_by, ascending=sort_by_ascending)
     df_filtered["custom_name"] = df_filtered[names].astype(str).agg("/".join, axis=1)
 
@@ -189,8 +190,21 @@ def st_data_section():
         )
         if unfiltered_data:
             data.write(df.astype(str))
+            st.download_button(
+                "Download DF DataFrame",
+                data=to_excel(df),
+                file_name="df.xlsx",
+                mime="application/vnd.ms-excel",
+            )
+
         else:
             data.write(df_filtered.astype(str))
+            st.download_button(
+                "Download filtered DataFrame",
+                data=to_excel(df_filtered),
+                file_name="filtered_df.xlsx",
+                mime="application/vnd.ms-excel",
+            )
     # data=st.expander('Raw DataFrame (Click to Show)')
 
 
@@ -278,7 +292,9 @@ def add_df_sort_settings_to_sidebar():
     sort_by = []
     sort_by_ascending = []
     st.write("To sort the data, select the columns to sort by")
-    sort_by_cols = df_sort_st.multiselect("Columns to sort by", options=cols, default=[], key = 'sort_by_cols')
+    sort_by_cols = df_sort_st.multiselect(
+        "Columns to sort by", options=cols, default=[], key="sort_by_cols"
+    )
     if sort_by_cols:
         df_sort_st.write("Reorder categories by dragging and dropping:")
         with df_sort_st:
@@ -286,15 +302,23 @@ def add_df_sort_settings_to_sidebar():
             st.session_state.sort_by = sort_by
             sort_by_ascending = []
             for i in sort_by:
-                test_default = st.session_state[f"sort_asc_{i}"] if f"sort_asc_{i}" in st.session_state else False
-                asc = st_toggle_switch(f"Sort {i} Ascending", default_value=True, key=f"sort_asc_{i}",label_after = False)
+                test_default = (
+                    st.session_state[f"sort_asc_{i}"]
+                    if f"sort_asc_{i}" in st.session_state
+                    else False
+                )
+                asc = st_toggle_switch(
+                    f"Sort {i} Ascending",
+                    default_value=True,
+                    key=f"sort_asc_{i}",
+                    label_after=False,
+                )
                 sort_by_ascending.append(asc if asc else False)
-
 
 
 def add_plot_settings_to_sidebar():
     # Adds plot settings widget to sidebar
-    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean,annotate_format  # ,color_palette_list
+    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean, annotate_format  # ,color_palette_list
 
     # updated_default_dict=set_values_from_url(default_dict)
     updated_default_dict = default_dict
@@ -315,7 +339,10 @@ def add_plot_settings_to_sidebar():
         "Plate",
     ]
     agg_opts = [
-        opt for opt in multi_options if opt in cols if len(df[opt].drop_duplicates()) > 1
+        opt
+        for opt in multi_options
+        if opt in cols
+        if len(df[opt].drop_duplicates()) > 1
     ]
     if len(agg_opts) == 0:
         agg_opts = ["Average_by"]
@@ -380,8 +407,6 @@ def add_plot_settings_to_sidebar():
     # temp_opts=cols
     # Choose columns by which to aggregate samples
     # Remove columns that only have one value
-
-
 
     boxwidth_help = "Relative space that the box takes - If the value is 1 each box will be connected to the box next to it, decreasing the value decreases the box width and increases the distance between adjacent boxes"
     boxwidth = plot_settings.slider(
@@ -456,7 +481,7 @@ def add_plot_settings_to_sidebar():
     # ylim_bottom=plot_settings.slider(label='Manually set ylim (min)',min_value=-20,max_value=20,value=0)
     ylim_values = plot_settings.empty()
     plot_settings.markdown("---")
-    
+
     remove_zero_help = "'Remove Zero Values Only When Not All Counts Are Zero' removes zeros only when some of the counts of the same sample equal to zero."
     remove_zero = plot_settings.selectbox(
         label="Remove Zero Values",
@@ -508,7 +533,7 @@ def add_plot_settings_to_sidebar():
     )
     annotate_format_help = "Shows the selected metric (mean/median etc) in the top portion of the chart.\n\nAnnotations currently don't work together with 'facet'."
     if annotate:
-        _,col = plot_settings.columns([1,9])
+        _, col = plot_settings.columns([1, 9])
         annotate_format = col.radio(
             label="Annotation Format",
             key="annotate_format",
@@ -522,112 +547,124 @@ def add_plot_settings_to_sidebar():
         key="boxmean",
     )
 
-def statistics(df,value_to_use):
-        statistic = st.selectbox(
-            "Choose Statistic Test", options=["Mann Whitney U", "Kruskal Wallis"]
-        )
 
-        from itertools import combinations
+def statistics(df, value_to_use):
+    statistic = st.selectbox(
+        "Choose Statistic Test", options=["Mann Whitney U", "Kruskal Wallis"]
+    )
 
-        df_list = []
-        for i, (name1, name2) in enumerate(
-            combinations(df["custom_name"].unique(), 2)
-        ):
-            if statistic == "Mann Whitney U":
-                stat, p = mannwhitneyu(
-                    df[df["custom_name"] == name1][value_to_use].dropna().tolist(),
-                    df[df["custom_name"] == name2][value_to_use].dropna().tolist(),
-                )
-            elif statistic == "Kruskal Wallis":
-                stat, p = kruskal(
-                    df[df["custom_name"] == name1][value_to_use].dropna().tolist(),
-                    df[df["custom_name"] == name2][value_to_use].dropna().tolist(),
-                )
-            df_list.append(
-                [
-                    name1,
-                    name2,
-                    np.where(df["custom_name"].unique() == name1)[0][0],
-                    np.where(df["custom_name"].unique() == name2)[0][0],
-                    df[df["custom_name"] == name1][value_to_use].dropna().median(),
-                    df[df["custom_name"] == name1][value_to_use].dropna().mean(),
-                    df[df["custom_name"] == name2][value_to_use].dropna().median(),
-                    df[df["custom_name"] == name2][value_to_use].dropna().mean(),
-                    stat,
-                    p,
-                    # "ns" if p >= 0.05 else "YES",
-                    "ns"
-                    if p >= 0.05
-                    else "★"
-                    if p >= 0.01
-                    else "★★"
-                    if p >= 0.001
-                    else "★★★",
-                ]
+    from itertools import combinations
+
+    df_list = []
+    for i, (name1, name2) in enumerate(combinations(df["custom_name"].unique(), 2)):
+        if statistic == "Mann Whitney U":
+            stat, p = mannwhitneyu(
+                df[df["custom_name"] == name1][value_to_use].dropna().tolist(),
+                df[df["custom_name"] == name2][value_to_use].dropna().tolist(),
             )
-
-
-        ag_df = pd.DataFrame(
-            df_list,
-            columns=[
-                "Group 1",
-                "Group 2",
-                "I1",
-                "I2",
-                "Median 1",
-                "Mean 1",
-                "Median 2",
-                "Mean 2",
-                "Statistic",
-                "P-Value",
-                "Significant",
-            ],
+        elif statistic == "Kruskal Wallis":
+            stat, p = kruskal(
+                df[df["custom_name"] == name1][value_to_use].dropna().tolist(),
+                df[df["custom_name"] == name2][value_to_use].dropna().tolist(),
+            )
+        df_list.append(
+            [
+                name1,
+                name2,
+                np.where(df["custom_name"].unique() == name1)[0][0],
+                np.where(df["custom_name"].unique() == name2)[0][0],
+                df[df["custom_name"] == name1][value_to_use].dropna().median(),
+                df[df["custom_name"] == name1][value_to_use].dropna().mean(),
+                df[df["custom_name"] == name2][value_to_use].dropna().median(),
+                df[df["custom_name"] == name2][value_to_use].dropna().mean(),
+                stat,
+                p,
+                # "ns" if p >= 0.05 else "YES",
+                "ns"
+                if p >= 0.05
+                else "★"
+                if p >= 0.01
+                else "★★"
+                if p >= 0.001
+                else "★★★",
+            ]
         )
-        ag_df["Level"] = 1
-        #move 'significant' column to the front
-        ag_df = ag_df[["Significant"] + [col for col in ag_df.columns if col != "Significant"]]
-        gb = GridOptionsBuilder.from_dataframe(ag_df)
 
-        gb.configure_selection("multiple", use_checkbox=True)
-        gb.configure_column("Level", editable=True)
+    ag_df = pd.DataFrame(
+        df_list,
+        columns=[
+            "Group 1",
+            "Group 2",
+            "I1",
+            "I2",
+            "Median 1",
+            "Mean 1",
+            "Median 2",
+            "Mean 2",
+            "Statistic",
+            "P-Value",
+            "Significant",
+        ],
+    )
+    ag_df["Level"] = 1
+    # move 'significant' column to the front
+    ag_df = ag_df[
+        ["Significant"] + [col for col in ag_df.columns if col != "Significant"]
+    ]
+    gb = GridOptionsBuilder.from_dataframe(ag_df)
 
-        gridOptions = gb.build()
-        
+    gb.configure_selection("multiple", use_checkbox=True)
+    gb.configure_column("Level", editable=True)
+
+    gridOptions = gb.build()
+
+    st.write(
+        "Select the p-values you want to add to the plot (only works when the plot is not split into subplots)"
+    )
+    manually_set_p_height = st.checkbox(
+        "Manually set p-value height", value=False, key="manually_set_p_height"
+    )
+    if manually_set_p_height:
         st.write(
-            "Select the p-values you want to add to the plot (only works when the plot is not split into subplots)"
+            "Edit the 'Level' column to change the height of the p-value shown (By double clicking and pressing Enter to accept)."
         )
-        manually_set_p_height = st.checkbox(
-            "Manually set p-value height", value=False, key="manually_set_p_height"
-        )
-        if manually_set_p_height:
-            st.write(
-                "Edit the 'Level' column to change the height of the p-value shown (By double clicking and pressing Enter to accept)."
-            )
-        df_out = AgGrid(ag_df, gridOptions=gridOptions, columns_auto_size_mode="FIT_CONTENTS")
-        st.download_button(
-                    "Download statistics output as excel",
-                    data=to_excel(df_out.data),
-                    file_name="statistics_output.xlsx",
-                    mime="application/vnd.ms-excel",
-                )
-        p_to_add = []
-        for i in df_out.selected_rows:
-            p_to_add.append([i["I1"], i["I2"], i["Significant"], i["Level"]])
-        return p_to_add,manually_set_p_height
+    df_out = AgGrid(
+        ag_df, gridOptions=gridOptions, columns_auto_size_mode="FIT_CONTENTS"
+    )
+    st.download_button(
+        "Download statistics output as excel",
+        data=to_excel(df_out.data),
+        file_name="statistics_output.xlsx",
+        mime="application/vnd.ms-excel",
+    )
+    p_to_add = []
+    for i in df_out.selected_rows:
+        p_to_add.append([i["I1"], i["I2"], i["Significant"], i["Level"]])
+    return p_to_add, manually_set_p_height
 
 
-def show_df(df,value_to_use):
-        assert 'custom_name' in df.columns, "custom_name column is missing"
-        with st.expander("DataFrame"):
-            df_to_show = (
-                df.groupby("custom_name").agg({value_to_use: ["mean","median", "std","sem","min",'max','count']}).reset_index()
+def show_df(df, value_to_use):
+    assert "custom_name" in df.columns, "custom_name column is missing"
+    with st.expander("DataFrame"):
+        df_to_show = (
+            df.groupby("custom_name")
+            .agg(
+                {value_to_use: ["mean", "median", "std", "sem", "min", "max", "count"]}
             )
-            # remove multiindex for column names by merging them
-            df_to_show.columns = df_to_show.columns.map("_".join)
-            st.write(df_to_show)
+            .reset_index()
+        )
+        # remove multiindex for column names by merging them
+        df_to_show.columns = df_to_show.columns.map("_".join)
+        st.write(df_to_show)
+
+
 def add_custom_name_column():
     df_filtered["custom_name"] = df_filtered[names].astype(str).agg("/".join, axis=1)
+
+
 import io
+
+
 def to_excel(df) -> bytes:
     output = io.BytesIO()
     writer = pd.ExcelWriter(output, engine="xlsxwriter")
@@ -662,12 +699,11 @@ def st_plot_section():
     )
     stat_bool = st.checkbox("Show Statistic Test Results")
     if stat_bool:
-        p_to_add,manually_set_p_height = statistics(df_melt,'value')
-        add_p(fig, p_to_add, manually_set_p_height,exp_container)
+        p_to_add, manually_set_p_height = statistics(df_melt, "value")
+        add_p(fig, p_to_add, manually_set_p_height, exp_container)
     st_figure.plotly_chart(fig, use_container_width=True, theme=None)
-    show_df(df_melt,'value')
+    show_df(df_melt, "value")
     # st.write(df_melt)
-        
 
 
 def get_ylim(df, y, force_disable_axis_start_at_one, force_disable_log):
@@ -732,7 +768,7 @@ def boxplot(
         log_y=logy,
         facet_col=facet,
         facet_col_spacing=0.03,
-        boxmode="group",
+        boxmode="overlay",
     )
 
     fig.update_xaxes(categoryorder="array", categoryarray=df["custom_name"].tolist())
@@ -789,11 +825,11 @@ def boxplot(
     else:
         fig.update_traces(boxpoints="outliers")
 
-    hover_plot = px.bar(
+    hover_plot = px.box(
         df,
         x="custom_name",
         y=[y_val] * len(df["custom_name"]),
-        barmode="overlay",
+        boxmode="overlay",
         hover_data=cols,
         facet_col=facet,
         log_y=log,
@@ -809,15 +845,15 @@ def boxplot(
     if annotate:
         ann = []
         if annotate == "Mean":
-          how = 'mean'
+            how = "mean"
         elif annotate == "Median":
-          how = 'median'
+            how = "median"
         elif annotate == "Standart Deviation":
-          how = 'std'
+            how = "std"
         elif annotate == "Standart Error Mean":
-          how = 'sem'
+            how = "sem"
         else:
-          how = 'mean'
+            how = "mean"
         # st.write(df_melt)
         for i, val in enumerate(
             list(
@@ -830,7 +866,9 @@ def boxplot(
                 dict(
                     x=i,
                     y=1.05,
-                    text=f"{val:.2e}"  if annotate_format=='Scientific' else f"{val:,.2f}" ,
+                    text=f"{val:.2e}"
+                    if annotate_format == "Scientific"
+                    else f"{val:,.2f}",
                     showarrow=False,
                     xref="x",
                     yref="paper",
@@ -926,11 +964,11 @@ def barplot(
     # else:
     #        fig.update_traces(boxpoints=False)
 
-    hover_plot = px.bar(
+    hover_plot = px.box(
         df,
         x="custom_name",
         y=[y_val] * len(df["custom_name"]),
-        barmode="overlay",
+        boxmode="overlay",
         hover_data=cols,
         facet_col=facet,
         log_y=log,
@@ -1016,13 +1054,14 @@ def percent_survaviability_plot_section():
 
     # Plot % out of reference plot
     fig = boxplot(df_melt, "value_norm", ref_val=100, y_label="% Survivability")
-    
+
     stat_bool = st.checkbox("Show Statistic Test Results")
     if stat_bool:
-        p_to_add,manually_set_p_height = statistics(df_melt,'value_norm')
+        p_to_add, manually_set_p_height = statistics(df_melt, "value_norm")
         add_p(fig, p_to_add, manually_set_p_height)
     st_survivability.plotly_chart(fig, use_container_width=True, theme=None)
-    show_df(df_melt,'value_norm')
+    show_df(df_melt, "value_norm")
+
 
 def ref_excluded_plot_section():
     st.markdown("---")
@@ -1047,11 +1086,10 @@ def ref_excluded_plot_section():
     )
     stat_bool = st.checkbox("Show Statistic Test Results")
     if stat_bool:
-        p_to_add,manually_set_p_height = statistics(df_melt,data)
+        p_to_add, manually_set_p_height = statistics(df_melt, data)
         add_p(fig2, p_to_add, manually_set_p_height)
     st_delta_plot.plotly_chart(fig2, use_container_width=True, theme=None)
-    show_df(df_melt,data)
-    
+    show_df(df_melt, data)
 
 
 def auto_ref_excluded_plot_section():
@@ -1086,17 +1124,14 @@ def auto_ref_excluded_plot_section():
         "I consulted Alon and I want to see this plot"
     )
     if delta_auto_set:
-        
         stat_bool = st.checkbox("Show Statistic Test Results")
         if stat_bool:
-            p_to_add,manually_set_p_height = statistics(df_melt,data)
+            p_to_add, manually_set_p_height = statistics(df_melt, data)
             add_p(fig3, p_to_add, manually_set_p_height)
         st_auto_delta_plot.plotly_chart(fig3, use_container_width=True, theme=None)
-        show_df(df_melt,data)
+        show_df(df_melt, data)
         # st_auto_delta_plot.subheader("Bar Chart Using Only Mean Value")
         # st_auto_delta_plot.plotly_chart(fig4, use_container_width=True, theme=None)
-
-    
 
 
 def auto_assign_ref_sample():
@@ -1298,75 +1333,76 @@ def apply_uploaded_settings(json_settings):
         )
 
 
-def add_p(fig, array_cols, manually_set_p_height,container = st.container()):
+def add_p(fig, array_cols, manually_set_p_height, container=st.container()):
     # test = container.checkbox("Test new UI for height of P value")
     # from streamlit_vertical_slider import vertical_slider
     # cont=container.columns(len(array_cols) if len(array_cols)>0 else 1)
 
     h0 = 1.02
     hdif = 0.04
-    for z,[ind1, ind2, symbol, level] in enumerate(array_cols):
-
+    for z, [ind1, ind2, symbol, level] in enumerate(array_cols):
         if manually_set_p_height:
             z = float(level)
         #     if test:
-                
+
         #         # for i in array_cols:
         # #             #verticle slider to set height
         #             with cont[int(z)]:
         #                 z = vertical_slider( key = f"vs_{ind1}_{ind2}",
-        #                     default_value=z, 
-        #                     step=0.5, 
-        #                     min_value=-10, 
+        #                     default_value=z,
+        #                     step=0.5,
+        #                     min_value=-10,
         #                     max_value=5,)
         #                 st.write(f"{ind1}_vs_{ind2}")
         #     else:
         #         level1 = level
-            
+
         #     h = 1 + (0.04 * float(level1 if level1 else level))
         fig.add_shape(
             type="line",
             yref="paper",
-            x0=ind1+0.02,
-            y0=h0+z*hdif,
-            x1=ind2-0.02,
-            y1=h0+z*hdif,
+            x0=ind1 + 0.02,
+            y0=h0 + z * hdif,
+            x1=ind2 - 0.02,
+            y1=h0 + z * hdif,
         )
         fig.add_shape(
             type="line",
             yref="paper",
-            x0=ind1+0.02,
-            y0=h0+z*hdif,
-            x1=ind1+0.02,
-            y1=h0+z*hdif-0.01,
+            x0=ind1 + 0.02,
+            y0=h0 + z * hdif,
+            x1=ind1 + 0.02,
+            y1=h0 + z * hdif - 0.01,
         )
         fig.add_shape(
             type="line",
             yref="paper",
-            x0=ind2-0.02,
-            y0=h0+z*hdif,
-            x1=ind2-0.02,
-            y1=h0+z*hdif-0.01,
+            x0=ind2 - 0.02,
+            y0=h0 + z * hdif,
+            x1=ind2 - 0.02,
+            y1=h0 + z * hdif - 0.01,
         )
 
         fig.add_annotation(
             x=(ind1 + ind2) / 2,
             text=symbol,
-            y=h0+z*hdif + 0.04,
+            y=h0 + z * hdif + 0.04,
             yref="paper",
             font_size=12,
             showarrow=False,
         )
-        
+
 
 def plotly_white_theme():
     global bg_dict
-    plotly_white = st.sidebar.checkbox("Use White Plot Background", value=False, key="plotly_white_theme")
+    plotly_white = st.sidebar.checkbox(
+        "Use White Plot Background", value=False, key="plotly_white_theme"
+    )
     if plotly_white:
         pio.templates.default = "plotly_white"
         bg_dict = {
-        'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-        'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+            "plot_bgcolor": "rgba(0, 0, 0, 0)",
+            "paper_bgcolor": "rgba(0, 0, 0, 0)",
         }
     else:
         bg_dict = {}
