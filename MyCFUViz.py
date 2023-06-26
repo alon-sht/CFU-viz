@@ -355,10 +355,10 @@ def add_plot_settings_to_sidebar():
         help=names_help,
     )
     color_help = "Choose a column from the data to color the plots by."
-    color = plot_settings.selectbox(
+    color = plot_settings.multiselect(
         label="Color",
-        options=multi_options,
-        index=multi_options.index(updated_default_dict["color"]),
+        options=multi_options[1:],
+        # index=multi_options.index(updated_default_dict["color"]),
         key="color",
         help=color_help,
     )
@@ -681,7 +681,10 @@ def st_plot_section():
     st_figure.subheader("CFU Plot")
     exp_container = st_figure.container()
     # Plot
-    fig = boxplot(df_melt, "value", y_label="CFU")
+    plot_yaxis_label = st_figure.text_input(
+        "Change Y-Axis Label (e.g. qPCR, CFU, Bacterial Counts)", value="CFU"
+    )
+    fig = boxplot(df_melt, "value", y_label=plot_yaxis_label)
     fig.update_layout(margin=dict(b=140))
     fig.update_layout(bg_dict)
     # st.write(fig.to_dict()["data"])
@@ -749,8 +752,11 @@ def boxplot(
 ):
     groupby = ["custom_name"]
     if color:
-        df[color] = df[color].astype(str)
-        groupby.append(color)
+        df["Color"] = df[color].astype(str).agg("|".join, axis=1)
+        # df[color] = df[color].astype(str)
+        groupby.append("Color")
+    else:
+        df["Color"] = "all"
     if facet:
         groupby.append(facet)
 
@@ -767,7 +773,7 @@ def boxplot(
         #     # "custom_name": "custom_name".replace("|", "<br>")
         #     # for i in df["custom_name"].unique()
         # },
-        color=color,
+        color="Color" if color else None if color else None if color else None,
         height=height,
         log_y=logy,
         facet_col=facet,
@@ -820,11 +826,15 @@ def boxplot(
         for i in names.keys():
             names[i] = names[i].replace("|", "<br>")
         names[-1] = "<br>".join(st.session_state["names"])
+        # names1 = {v: v.replace("|", "<br>") for v in df["custom_name"].unique()}
+        # st.write(names1)
         fig.update_xaxes(
             tickangle=0,
             tickvals=list(names.keys()),
             ticktext=list(names.values()),
+            # labelalias=names1,
         )
+        # st.write(fig.data)
 
     if y_label and show_ylabel:
         label = y_label
@@ -852,7 +862,7 @@ def boxplot(
         hover_data=cols,
         facet_col=facet,
         log_y=log,
-        color=color,
+        color="Color" if color else None if color else None,
     )
     hover_plot.update_traces(
         opacity=0,
@@ -905,7 +915,7 @@ def boxplot(
             df.groupby(groupby, sort=False, as_index=False).agg({y: "mean"}),
             x="custom_name",
             y=y,
-            color=color,
+            color="Color" if color else None,
             height=height,
             log_y=logy,
             facet_col=facet,
@@ -939,7 +949,7 @@ def barplot(
         df.groupby(groupby, sort=False, as_index=False).agg({y: "mean"}),
         x="custom_name",
         y=y,
-        color=color,
+        color="Color" if color else None,
         height=height,
         log_y=logy,
         facet_col=facet,
@@ -996,7 +1006,7 @@ def barplot(
         hover_data=cols,
         facet_col=facet,
         log_y=log,
-        color=color,
+        color="Color" if color else None,
     )
     hover_plot.update_traces(width=boxwidth, opacity=0, showlegend=False)
     hover_plot.update_layout(yaxis_range=[0, max_val])
