@@ -83,7 +83,7 @@ def st_header_section():
     # Set up header section of app
     head = st.columns(3)
     head[0] = head[2] = st.write("")
-    head[1].image("Mybiotics_LOGO - Large.png", width=350)
+    head[1].image("logo.png", width=350)
     st.title("MyCFUViz")
 
 
@@ -228,7 +228,7 @@ def excel_to_df(upload_data_widget):
 def add_logo_and_links_to_sidebar():
     # Adds logo and links to the different sections in the sidebar
     st.sidebar.image(
-        "Mybiotics_LOGO - Large.png",
+        "logo.png",
         width=250,
     )
     # links=st.sidebar.container()
