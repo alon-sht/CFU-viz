@@ -545,7 +545,7 @@ def add_plot_settings_to_sidebar():
         options=["Mean and Median", "Mean, Median and SD", "Only Median"],
         key="boxmean",
     )
-
+    
 
 def statistics(df, value_to_use):
     statistic = st.selectbox(
@@ -688,7 +688,7 @@ def st_plot_section():
     fig.update_layout(margin=dict(b=140))
     fig.update_layout(bg_dict)
     # st.write(fig.to_dict()["data"])
-
+    
     import io
 
     buffer = io.StringIO()
@@ -923,6 +923,8 @@ def boxplot(
         )
         line_fig.update_layout(showlegend=False)
         fig.add_traces(line_fig.data)
+
+    show_lines_from_reference(fig,y)
     return fig
 
 
@@ -1037,6 +1039,28 @@ def barplot(
         fig.layout.annotations = ann
     return fig
 
+def show_lines_from_reference(fig,y):
+    with st.sidebar.expander("Add verticle lines"):
+        lines_from = st.radio("Show lines from", options = ['Value','Sample'])
+        if lines_from == 'Value':
+            ref_value = st.number_input("Input ref value")
+        if lines_from == 'Sample':
+            ref_sample_for_hlines = st.selectbox("Select Sample",df_melt['custom_name'].unique().tolist())
+            ref_sample_value_type = st.radio("Value Type", ['Mean','Median','Min','Max'])
+            if ref_sample_value_type == "Mean":
+                ref_value = df_melt.groupby(by='custom_name')[y].mean().loc[ref_sample_for_hlines]
+            elif ref_sample_value_type == "Median":
+                ref_value = df_melt.groupby(by='custom_name')[y].median().loc[ref_sample_for_hlines]
+            elif ref_sample_value_type == "Min":
+                ref_value = df_melt.groupby(by='custom_name')[y].min().loc[ref_sample_for_hlines]
+            elif ref_sample_value_type == "Max":
+                ref_value = df_melt.groupby(by='custom_name')[y].max().loc[ref_sample_for_hlines]
+            st.write(f"Ref Value is {ref_value}")
+        # reference_to_show_lines_from = st.selectbox("Reference to show line from", options = df_filtered["custom_name"].unique().tolist())
+        show_lines_from_ref = st.multiselect("Show lines from reference", options = [100,75,50,25,10,1], key = 'show_lines_from_ref')
+        for line in show_lines_from_ref:
+            fig.add_hline(y=ref_value*line/100)
+            fig.add_annotation(text = str(line)+"%",x=0.999,yshift = 10,y=np.log10(ref_value*line/100) if log else ref_value*line/100, xref='paper',showarrow=False,yref='y')
 
 def choose_reference():
     global ref_value, y_norm  # ,y_ref_excluded,y_ref_excluded_log
@@ -1064,6 +1088,8 @@ def choose_reference():
         key="ref_sample_type",
         help=choose_ref_type_help,
     )
+    
+
     # ref_opts=df_filtered[df_filtered['custom_name'].isin([choose_ref_sample])][y_variables]
     ref_opts = df_melt[df_melt["custom_name"] == choose_ref_sample]["value"]
     if choose_ref_type == "Min":
@@ -1463,6 +1489,7 @@ def main():
         # update_parameters_in_link()
         filter_data()
         choose_reference()
+        
         auto_assign_ref_sample()
         save_and_upload_settings()
         st_data_section()
