@@ -311,7 +311,7 @@ def add_df_sort_settings_to_sidebar():
 
 def add_plot_settings_to_sidebar():
     # Adds plot settings widget to sidebar
-    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean, annotate_format, turn_xlabels  # ,color_palette_list
+    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean, annotate_format, turn_xlabels, annotate_max, annotate_min, annotation_color  # ,color_palette_list
 
     # updated_default_dict=set_values_from_url(default_dict)
     updated_default_dict = default_dict
@@ -320,22 +320,23 @@ def add_plot_settings_to_sidebar():
     plot_settings.subheader("Plot Widgets")
     # plot_settings.button("Reset Defaults",on_click=reset_all_defaults)
     multi_options = [None] + cols
-    temp_opts = [
-        "SampleID/PlateID",
-        "Experiment",
-        "Bacteria",
-        "SampleOrigin",
-        "TestedPhase",
-        "TimePoint",
-        "TestedAgent",
-        "TestedAgentDilution",
-        "Plate",
+    exclude_opts = [
+        "Sample Elution",
+        "Sample Dilution",
+        "DNA Kit Extraction Factor",
+        "Volume of DNA/well",
+        "ml in Tube (before pellet)",
+        "Normalization Factor",
+        "Drop Assay Dilution",
+        "PBS Dilution",
+        "Amount of Powder (g)",
     ]
     agg_opts = [
         opt
         for opt in multi_options
         if opt in cols
         if len(df[opt].drop_duplicates()) > 1
+        if opt not in exclude_opts
     ]
     if len(agg_opts) == 0:
         agg_opts = ["Average_by"]
@@ -525,27 +526,39 @@ def add_plot_settings_to_sidebar():
     )
     annotate_help = "Shows the selected metric (mean/median etc) in the top portion of the chart.\n\nAnnotations currently don't work together with 'facet'."
     annotate = plot_settings.selectbox(
-        label="Show Annotations On Plot",
+        label="Show Annotations Above Plot",
         key="annotate",
         options=[None, "Mean", "Median", "Standart Deviation", "Standart Error Mean"],
         help=annotate_help,
     )
     annotate_format_help = "Shows the selected metric (mean/median etc) in the top portion of the chart.\n\nAnnotations currently don't work together with 'facet'."
-    if annotate:
-        _, col = plot_settings.columns([1, 9])
-        annotate_format = col.radio(
-            label="Annotation Format",
-            key="annotate_format",
-            options=["Scientific", "Decimal"],
-            help=annotate_format_help,
-            horizontal=True,
-        )
+
+    # if annotate:
+    _, col = plot_settings.columns([1, 9])
+    annotate_format = col.radio(
+        label="Annotation Format",
+        key="annotate_format",
+        options=["Scientific", "Decimal"],
+        help=annotate_format_help,
+        horizontal=True,
+    )
+    annotate_max = plot_settings.checkbox(
+        label="Show Max Value Above Box",
+        key="annotate_max",
+        # help=annotate_help,
+    )
+    annotate_min = plot_settings.checkbox(
+        label="Show Min Value Above Box",
+        key="annotate_min",
+        # help=annotate_help,
+    )
+    annotation_color = plot_settings.color_picker("Annotation Color", "#000000")
     boxmean = plot_settings.selectbox(
         "Show on Box",
         options=["Mean and Median", "Mean, Median and SD", "Only Median"],
         key="boxmean",
     )
-    
+
 
 def statistics(df, value_to_use):
     statistic = st.selectbox(
@@ -688,7 +701,7 @@ def st_plot_section():
     fig.update_layout(margin=dict(b=140))
     fig.update_layout(bg_dict)
     # st.write(fig.to_dict()["data"])
-    
+
     import io
 
     buffer = io.StringIO()
@@ -711,11 +724,11 @@ def st_plot_section():
 def get_ylim(df, y, force_disable_axis_start_at_one, force_disable_log):
     # Get limit of y axis based on parameters
     if log and not force_disable_axis_start_at_one:
-        max_val = np.log10(df[y].max()) + 0.5
+        max_val = np.log10(df[y].max()) + 1
         y_val = 10**max_val
-        min_val = np.log10(df[y].min()) - 0.5
+        min_val = np.log10(df[y].min()) - 1
     else:
-        max_val = df[y].max() * 1.05
+        max_val = df[y].max() * 1.1
         y_val = max_val
         if df[y].min() > 0:
             min_val = df[y].min() * 0.95
@@ -781,7 +794,7 @@ def boxplot(
         boxmode="overlay",
     )
 
-    fig.update_xaxes(categoryorder="array", categoryarray=df["custom_name"].tolist())
+    # fig.update_xaxes(categoryorder="array", categoryarray=df["custom_name"].tolist())
     min_val, max_val, y_val, how_to_set_ylim = get_ylim(
         df, y, force_disable_axis_start_at_one, force_disable_log
     )
@@ -852,63 +865,71 @@ def boxplot(
     else:
         fig.update_traces(boxpoints="outliers")
 
-    hover_plot = px.bar(
-        df,
-        x="custom_name",
-        y=[y_val] * len(df["custom_name"]),
-        barmode="overlay",
-        # histfunc="avg",
-        # text_auto=".2e",
-        hover_data=cols,
-        facet_col=facet,
-        log_y=log,
-        color="Color" if color else None if color else None,
+    hover_plot = (
+        px.bar(
+            df,
+            x="custom_name",
+            y=[y_val] * len(df["custom_name"]),
+            barmode="overlay",
+            # histfunc="avg",
+            # text_auto=".2e",
+            hover_data=cols,
+            facet_col=facet,
+            log_y=log,
+            color="Color" if color else None if color else None,
+        )
+        .update_traces(
+            opacity=0,
+            width=boxwidth,
+            showlegend=False,
+            textposition="outside",
+        )
+        .update_layout(yaxis_range=[0, max_val], uniformtext_minsize=8)
+        .update_xaxes(matches=None)
     )
-    hover_plot.update_traces(
-        opacity=0,
-        width=boxwidth,
-        showlegend=False,
-        textposition="outside",
-    )  #
-    hover_plot.update_layout(yaxis_range=[0, max_val], uniformtext_minsize=8)
 
     if show_meta_on_hover:
         fig.add_traces(hover_plot.data)
+    if annotate:
+        agg_functions = {
+            None: lambda x: x,
+            "Mean": np.mean,
+            "Median": np.median,
+            "Standard Deviation": np.std,
+            # "Standard Error Mean": np.sem,
+        }
+        agg_func = agg_functions[annotate]
+        annotations = iterate_categories_and_create_annotaitons(
+            df_melt, y, agg_func, facet, yshift=0, color=annotation_color
+        )
+        for annotation in annotations:
+            fig.add_annotation(annotation)
+    if annotate_max:
+        annotations = iterate_categories_and_create_annotaitons(
+            df_melt,
+            y,
+            np.max,
+            facet,
+            yshift=10,
+            y_loc="inplace",
+            color=annotation_color,
+        )
+        for annotation in annotations:
+            fig.add_annotation(annotation)
+    if annotate_min:
+        annotations = iterate_categories_and_create_annotaitons(
+            df_melt,
+            y,
+            np.min,
+            facet,
+            yshift=-10,
+            y_loc="inplace",
+            color=annotation_color,
+        )
+        for annotation in annotations:
+            fig.add_annotation(annotation)
     if ref_line:
         fig.add_hline(y=ref_val)
-    if annotate:
-        ann = []
-        if annotate == "Mean":
-            how = "mean"
-        elif annotate == "Median":
-            how = "median"
-        elif annotate == "Standart Deviation":
-            how = "std"
-        elif annotate == "Standart Error Mean":
-            how = "sem"
-        else:
-            how = "mean"
-        # st.write(df_melt)
-        for i, val in enumerate(
-            list(
-                df_melt.groupby(groupby, sort=False, as_index=False)
-                .agg({y: how})
-                .round(2)[y]
-            )
-        ):
-            ann.append(
-                dict(
-                    x=i,
-                    y=1.05,
-                    text=f"{val:.2e}"
-                    if annotate_format == "Scientific"
-                    else f"{val:,.2f}",
-                    showarrow=False,
-                    xref="x",
-                    yref="paper",
-                )
-            )
-        fig.layout.annotations = ann
 
     if show_line:
         line_fig = px.line(
@@ -924,8 +945,54 @@ def boxplot(
         line_fig.update_layout(showlegend=False)
         fig.add_traces(line_fig.data)
 
-    show_lines_from_reference(fig,y)
-    return fig
+    show_lines_from_reference(fig, y)
+    return fig.update_xaxes(matches=None)
+
+
+def iterate_categories_and_create_annotaitons(
+    df, value_col, agg_func, facet_chose, y_loc="top", yshift=0, color="black"
+):
+    ann = []
+    groupby_cols = [facet_chose, "custom_name"] if facet_chose else ["custom_name"]
+    agg_df = df.reset_index().groupby(groupby_cols)[value_col].agg(agg_func).to_frame()
+    if facet_chose:
+        for i, variable in enumerate(df[facet_chose].unique()):
+            for target_category, value in agg_df.loc[(variable,)].itertuples(name=None):
+                ann.append(
+                    dict(
+                        x=target_category,
+                        y=1.0
+                        if y_loc == "top"
+                        else np.log10(value),  # np.log10(value),
+                        xref="x" + str(i + 1),
+                        yref="paper" if y_loc == "top" else "y" + str(i + 1),
+                        text=f"{value:.2e}"
+                        if annotate_format == "Scientific"
+                        else f"{value:,.2f}",
+                        font=dict(color=color),
+                        showarrow=False,
+                        ax=40,
+                        yshift=yshift,
+                    )
+                )
+    else:
+        for target_category, value in agg_df.itertuples(name=None):
+            ann.append(
+                dict(
+                    x=target_category,
+                    y=1.0 if y_loc == "top" else np.log10(value),  # np.log10(value),
+                    xref="x",
+                    yref="paper" if y_loc == "top" else "y",
+                    text=f"{value:.2e}"
+                    if annotate_format == "Scientific"
+                    else f"{value:,.2f}",
+                    font=dict(color=color),
+                    showarrow=False,
+                    ax=40,
+                    yshift=yshift,
+                )
+            )
+    return ann
 
 
 def barplot(
@@ -1039,28 +1106,62 @@ def barplot(
         fig.layout.annotations = ann
     return fig
 
-def show_lines_from_reference(fig,y):
+
+def show_lines_from_reference(fig, y):
     with st.sidebar.expander("Add verticle lines"):
-        lines_from = st.radio("Show lines from", options = ['Value','Sample'])
-        if lines_from == 'Value':
+        lines_from = st.radio("Show lines from", options=["Value", "Sample"])
+        if lines_from == "Value":
             ref_value = st.number_input("Input ref value")
-        if lines_from == 'Sample':
-            ref_sample_for_hlines = st.selectbox("Select Sample",df_melt['custom_name'].unique().tolist())
-            ref_sample_value_type = st.radio("Value Type", ['Mean','Median','Min','Max'])
+        if lines_from == "Sample":
+            ref_sample_for_hlines = st.selectbox(
+                "Select Sample", df_melt["custom_name"].unique().tolist()
+            )
+            ref_sample_value_type = st.radio(
+                "Value Type", ["Mean", "Median", "Min", "Max"]
+            )
             if ref_sample_value_type == "Mean":
-                ref_value = df_melt.groupby(by='custom_name')[y].mean().loc[ref_sample_for_hlines]
+                ref_value = (
+                    df_melt.groupby(by="custom_name")[y]
+                    .mean()
+                    .loc[ref_sample_for_hlines]
+                )
             elif ref_sample_value_type == "Median":
-                ref_value = df_melt.groupby(by='custom_name')[y].median().loc[ref_sample_for_hlines]
+                ref_value = (
+                    df_melt.groupby(by="custom_name")[y]
+                    .median()
+                    .loc[ref_sample_for_hlines]
+                )
             elif ref_sample_value_type == "Min":
-                ref_value = df_melt.groupby(by='custom_name')[y].min().loc[ref_sample_for_hlines]
+                ref_value = (
+                    df_melt.groupby(by="custom_name")[y]
+                    .min()
+                    .loc[ref_sample_for_hlines]
+                )
             elif ref_sample_value_type == "Max":
-                ref_value = df_melt.groupby(by='custom_name')[y].max().loc[ref_sample_for_hlines]
+                ref_value = (
+                    df_melt.groupby(by="custom_name")[y]
+                    .max()
+                    .loc[ref_sample_for_hlines]
+                )
             st.write(f"Ref Value is {ref_value}")
         # reference_to_show_lines_from = st.selectbox("Reference to show line from", options = df_filtered["custom_name"].unique().tolist())
-        show_lines_from_ref = st.multiselect("Show lines from reference", options = [100,75,50,25,10,1], key = 'show_lines_from_ref')
+        show_lines_from_ref = st.multiselect(
+            "Show lines from reference",
+            options=[100, 75, 50, 25, 10, 1],
+            key="show_lines_from_ref",
+        )
         for line in show_lines_from_ref:
-            fig.add_hline(y=ref_value*line/100)
-            fig.add_annotation(text = str(line)+"%",x=0.999,yshift = 10,y=np.log10(ref_value*line/100) if log else ref_value*line/100, xref='paper',showarrow=False,yref='y')
+            fig.add_hline(y=ref_value * line / 100)
+            fig.add_annotation(
+                text=str(line) + "%",
+                x=0.999,
+                yshift=10,
+                y=np.log10(ref_value * line / 100) if log else ref_value * line / 100,
+                xref="paper",
+                showarrow=False,
+                yref="y",
+            )
+
 
 def choose_reference():
     global ref_value, y_norm  # ,y_ref_excluded,y_ref_excluded_log
@@ -1088,7 +1189,6 @@ def choose_reference():
         key="ref_sample_type",
         help=choose_ref_type_help,
     )
-    
 
     # ref_opts=df_filtered[df_filtered['custom_name'].isin([choose_ref_sample])][y_variables]
     ref_opts = df_melt[df_melt["custom_name"] == choose_ref_sample]["value"]
@@ -1489,7 +1589,7 @@ def main():
         # update_parameters_in_link()
         filter_data()
         choose_reference()
-        
+
         auto_assign_ref_sample()
         save_and_upload_settings()
         st_data_section()
