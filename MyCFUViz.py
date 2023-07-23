@@ -794,7 +794,7 @@ def boxplot(
         boxmode="overlay",
     )
 
-    # fig.update_xaxes(categoryorder="array", categoryarray=df["custom_name"].tolist())
+    fig.update_xaxes(categoryarray=df["custom_name"].tolist())  # categoryorder="array",
     min_val, max_val, y_val, how_to_set_ylim = get_ylim(
         df, y, force_disable_axis_start_at_one, force_disable_log
     )
