@@ -1160,7 +1160,7 @@ def show_lines_from_reference(fig, y):
         # reference_to_show_lines_from = st.selectbox("Reference to show line from", options = df_filtered["custom_name"].unique().tolist())
         show_lines_from_ref = st.multiselect(
             "Show lines from reference",
-            options=[100, 75, 50, 25, 10, 1],
+            options=[100, 75, 50, 25, 10, 1, 0.1, 0.01],
             key="show_lines_from_ref",
         )
         for line in show_lines_from_ref:
