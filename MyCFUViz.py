@@ -838,7 +838,7 @@ def boxplot(
         names = dict(enumerate(df["custom_name"].unique()))
         for i in names.keys():
             names[i] = names[i].replace("|", "<br>")
-        st.write(st.session_state["names"])
+        # st.write(st.session_state["names"])
         axis_text = "<br>".join(st.session_state["names"])
 
         # names1 = {v: v.replace("|", "<br>") for v in df["custom_name"].unique()}
@@ -853,8 +853,8 @@ def boxplot(
             x=0,
             y=0,
             xref="paper",
-            yanchor = "top",
-            xanchor = 'center',
+            yanchor="top",
+            xanchor="center",
             yref="paper",
             text=axis_text,
             showarrow=False,
