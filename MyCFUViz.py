@@ -838,7 +838,9 @@ def boxplot(
         names = dict(enumerate(df["custom_name"].unique()))
         for i in names.keys():
             names[i] = names[i].replace("|", "<br>")
-        names[-1] = "<br>".join(st.session_state["names"])
+        st.write(st.session_state["names"])
+        axis_text = "<br>".join(st.session_state["names"])
+
         # names1 = {v: v.replace("|", "<br>") for v in df["custom_name"].unique()}
         # st.write(names1)
         fig.update_xaxes(
@@ -846,6 +848,17 @@ def boxplot(
             tickvals=list(names.keys()),
             ticktext=list(names.values()),
             # labelalias=names1,
+        )
+        fig.add_annotation(
+            x=0,
+            y=0,
+            xref="paper",
+            yanchor = "top",
+            xanchor = 'center',
+            yref="paper",
+            text=axis_text,
+            showarrow=False,
+            font=dict(size=font_size),
         )
         # st.write(fig.data)
 
@@ -1546,7 +1559,8 @@ def add_p(fig, array_cols, manually_set_p_height, container=st.container()):
         fig.add_annotation(
             x=(ind1 + ind2) / 2,
             text=symbol,
-            y=h0 + z * hdif + hdif * 2,
+            y=h0 + z * hdif,
+            yanchor="bottom",
             yref="paper",
             font_size=12,
             showarrow=False,
