@@ -311,7 +311,7 @@ def add_df_sort_settings_to_sidebar():
 
 def add_plot_settings_to_sidebar():
     # Adds plot settings widget to sidebar
-    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean, annotate_format, turn_xlabels, annotate_max, annotate_min, annotation_color  # ,color_palette_list
+    global color, facet, height, names, boxwidth, points, log, remove_zero, start_at_one, font_size, xlabels, updated_default_dict, ref_line, show_meta_on_hover, multi_options, ylim_top, ylim_bottom, manually_set_ylim, log_ylim, ylim_values, annotate, agg_opts, show_axis_on_each, show_ylabel, show_line, boxmean, annotate_format, turn_xlabels, annotate_max, annotate_min, annotation_color, manually_set_y_to_show  # ,color_palette_list
 
     # updated_default_dict=set_values_from_url(default_dict)
     updated_default_dict = default_dict
@@ -528,7 +528,13 @@ def add_plot_settings_to_sidebar():
     annotate = plot_settings.selectbox(
         label="Show Annotations Above Plot",
         key="annotate",
-        options=[None, "Mean", "Median", "Standart Deviation", "Standart Error Mean"],
+        options=[
+            None,
+            "Mean",
+            "Median",
+            "Standart Deviation",
+            "Standart Error Mean",
+        ],
         help=annotate_help,
     )
     annotate_format_help = "Shows the selected metric (mean/median etc) in the top portion of the chart.\n\nAnnotations currently don't work together with 'facet'."
@@ -541,6 +547,9 @@ def add_plot_settings_to_sidebar():
         options=["Scientific", "Decimal"],
         help=annotate_format_help,
         horizontal=True,
+    )
+    manually_set_y_to_show = plot_settings.radio(
+        "Manually Set Value to show", ["Autoset", "Value", "% From Reference"]
     )
     annotate_max = plot_settings.checkbox(
         label="Show Max Value Above Box",
@@ -697,6 +706,7 @@ def st_plot_section():
     plot_yaxis_label = st_figure.text_input(
         "Change Y-Axis Label (e.g. qPCR, CFU, Bacterial Counts)", value="CFU"
     )
+
     fig = boxplot(df_melt, "value", y_label=plot_yaxis_label)
     fig.update_layout(margin=dict(b=140))
     fig.update_layout(bg_dict)
@@ -912,8 +922,14 @@ def boxplot(
             # "Standard Error Mean": np.sem,
         }
         agg_func = agg_functions[annotate]
+        if manually_set_y_to_show == "Autoset":
+            y_to_show = y
+        elif manually_set_y_to_show == "% From Reference":
+            y_to_show = "value_norm"
+        elif manually_set_y_to_show == "Value":
+            y_to_show = "value"
         annotations = iterate_categories_and_create_annotaitons(
-            df_melt, y, agg_func, facet, yshift=0, color=annotation_color
+            df_melt, y_to_show, agg_func, facet, yshift=0, color=annotation_color
         )
         for annotation in annotations:
             fig.add_annotation(annotation)
@@ -1217,6 +1233,7 @@ def choose_reference():
         f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n\n Chosen reference value is {ref_value:.4}"
     )
     update_df_melt_according_to_ref()
+    st.write("123123123")
 
 
 def percent_survaviability_plot_section():
