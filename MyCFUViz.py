@@ -537,14 +537,14 @@ def add_plot_settings_to_sidebar():
         ],
         help=annotate_help,
     )
-    annotate_format_help = "Shows the selected metric (mean/median etc) in the top portion of the chart.\n\nAnnotations currently don't work together with 'facet'."
+    annotate_format_help = "Choose the format of the value shown."
 
     # if annotate:
     _, col = plot_settings.columns([1, 9])
     annotate_format = col.radio(
         label="Annotation Format",
         key="annotate_format",
-        options=["Scientific", "Decimal"],
+        options=["Scientific", "Decimal", "%"],
         help=annotate_format_help,
         horizontal=True,
     )
@@ -997,7 +997,11 @@ def iterate_categories_and_create_annotaitons(
                         yref="paper" if y_loc == "top" else "y" + str(i + 1),
                         text=f"{value:.2e}"
                         if annotate_format == "Scientific"
-                        else f"{value:,.2f}",
+                        else (
+                            f"{value:,.2f}"
+                            if annotate_format == "Decimal"
+                            else f"{value:.2f}%"
+                        ),
                         font=dict(color=color),
                         showarrow=False,
                         ax=40,
@@ -1014,7 +1018,11 @@ def iterate_categories_and_create_annotaitons(
                     yref="paper" if y_loc == "top" else "y",
                     text=f"{value:.2e}"
                     if annotate_format == "Scientific"
-                    else f"{value:,.2f}",
+                    else (
+                        f"{value:,.2f}"
+                        if annotate_format == "Decimal"
+                        else f"{value:,.2f}%"
+                    ),
                     font=dict(color=color),
                     showarrow=False,
                     ax=40,
@@ -1233,7 +1241,6 @@ def choose_reference():
         f"Reference value is set to the {choose_ref_type} value of '{choose_ref_sample}'. \n\n Chosen reference value is {ref_value:.4}"
     )
     update_df_melt_according_to_ref()
-    st.write("123123123")
 
 
 def percent_survaviability_plot_section():
