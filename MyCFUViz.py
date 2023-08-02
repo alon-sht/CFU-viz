@@ -548,7 +548,7 @@ def add_plot_settings_to_sidebar():
         help=annotate_format_help,
         horizontal=True,
     )
-    manually_set_y_to_show = plot_settings.radio(
+    manually_set_y_to_show = plot_settings.selectbox(
         "Manually Set Value to show", ["Autoset", "Value", "% From Reference"]
     )
     annotate_max = plot_settings.checkbox(
