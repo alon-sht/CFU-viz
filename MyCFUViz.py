@@ -206,21 +206,33 @@ def excel_to_df(upload_data_widget):
     # Return pandas df
     global cols, df
     warnings.simplefilter(action="ignore", category=UserWarning)
-    if len(upload_data_widget) == 1:
-        df = pd.read_excel(BytesIO(upload_data_widget[0].getvalue()), skiprows=1).round(
-            3
+    # if len(upload_data_widget) == 1:
+    #     xl = pd.ExcelFile(BytesIO(upload_data_widget[0].getvalue()), engine="openpyxl")
+    #     sheet = st.radio(
+    #         "In case of multiple sheets, please select which one to use.",
+    #         xl.sheet_names,
+    #     )
+    #     df = pd.read_excel(
+    #         BytesIO(upload_data_widget[0].getvalue()), skiprows=1, sheet_name=sheet
+    #     ).round(3)
+    if len(upload_data_widget) >= 1:
+        df = pd.concat(
+            [
+                pd.read_excel(BytesIO(file.getvalue()), skiprows=1).round(3)
+                for file in upload_data_widget
+            ]
         )
-    elif len(upload_data_widget) > 1:
-        df = pd.read_excel(BytesIO(upload_data_widget[0].getvalue()), skiprows=1).round(
-            3
-        )
-        for file in upload_data_widget[1:]:
-            df = pd.concat(
-                [df, pd.read_excel(BytesIO(file.getvalue()), skiprows=1).round(3)]
-            )
 
-    ind = list(df.columns).index("Plate")
-    cols = df.columns.tolist()[: ind + 1]
+        # df = pd.read_excel(BytesIO(upload_data_widget[0].getvalue()), skiprows=1).round(
+        #     3
+        # )
+        # for file in upload_data_widget[1:]:
+        #     df = pd.concat(
+        #         [df, pd.read_excel(BytesIO(file.getvalue()), skiprows=1).round(3)]
+        #     )
+
+    ind = list(df.columns).index("Count_1")
+    cols = df.columns.tolist()[: ind - 1]
     df[cols] = df[cols].replace(np.nan, "")
     return df
 
