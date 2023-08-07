@@ -233,7 +233,7 @@ def excel_to_df(upload_data_widget):
 
     ind = list(df.columns).index("Count_1")
     cols = df.columns.tolist()[: ind - 1]
-    st.write(cols)
+    # st.write(cols)
     df[cols] = df[cols].replace(np.nan, "")
     return df
 
