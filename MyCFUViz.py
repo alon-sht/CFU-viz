@@ -233,6 +233,7 @@ def excel_to_df(upload_data_widget):
 
     ind = list(df.columns).index("Count_1")
     cols = df.columns.tolist()[: ind - 1]
+    st.write(cols)
     df[cols] = df[cols].replace(np.nan, "")
     return df
 
@@ -275,7 +276,7 @@ def get_filters_and_add_widgets_to_sidebar(df):
     else:
         sample_data_col = df.columns[-1]
 
-    for y in df.columns[1 : df.columns.get_loc(sample_data_col)]:
+    for y in cols:  # df.columns[1 : df.columns.get_loc(sample_data_col)]:
         if len(df[y].unique().tolist()) > 1:
             widget_dict[y] = form.multiselect(
                 label=str(y),
